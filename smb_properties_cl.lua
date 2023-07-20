@@ -11,17 +11,6 @@ end
 
 CreateThread(function()
     for propertyName, property in pairs(Config.Properties) do
-        -- local polyzoneCoords
-
-        -- if property.type == "house" or property.type == "mansion" then
-        --     polyzoneCoords = property.polyzone
-        -- end
-
-        -- elseif property.type == "hotel" then
-        --     for roomId, room in pairs(property.rooms) do
-        --         polyzoneCoords = {room.coords}
-        --     end
-        -- end
 
         if property.polyZone then
             local zone = PolyZone:Create(property.polyZone, {
