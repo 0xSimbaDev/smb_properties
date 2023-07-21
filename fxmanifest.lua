@@ -13,6 +13,11 @@ shared_scripts {
     'config.lua',
 }
 
+server_scripts {
+    '@oxmysql/lib/MySQL.lua',
+    'smb_properties_sv.lua'
+} 
+
 client_scripts {
     '@PolyZone/client.lua',
     '@PolyZone/BoxZone.lua',

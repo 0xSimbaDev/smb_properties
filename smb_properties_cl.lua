@@ -9,114 +9,119 @@ local function IsPlayerNearCoord(coord)
     return distance <= displayDistance
 end
 
+local function ToggleDoorState(door)
+    door.locked = not door.locked
+    TriggerServerEvent('smb_properties:server:UpdateDoorState', currentPropertyName, door.doorHash, door.locked)
+
+    if door.locked then
+        QBCore.Functions.Notify('Door locked!', 'success')
+    else
+        QBCore.Functions.Notify('Door unlocked!', 'success')
+    end
+end
+
+local function SetDoorState(doorHash, state)
+    local doorState = state and 4 or 0
+    DoorSystemSetDoorState(doorHash, doorState)
+end
+
+local function HandleAction(actionType, property, unitId)
+    if actionType == "stash" then
+        QBCore.Functions.Notify('Accessing property stash!', 'success')
+    elseif actionType == "door" then
+        QBCore.Functions.Notify('Using property door!', 'success')
+    elseif actionType == "unit_stash" then
+        QBCore.Functions.Notify('Accessing unit stash!', 'success')
+    elseif actionType == "unit_door" then
+        local door = property.units[unitId].door
+        ToggleDoorState(door)
+    end
+end
+
 CreateThread(function()
     for propertyName, property in pairs(Config.Properties) do
 
         if property.polyZone then
             local zone = PolyZone:Create(property.polyZone, {
                 name = propertyName,
-                debugPoly = true,
-                minZ = property.coords.z - 10.0, 
+                debugPoly = false,
+                minZ = property.coords.z - 10.0,
                 maxZ = property.coords.z + 7.0
             })
 
             zone:onPlayerInOut(function(isPointInside)
                 if isPointInside then
-                    insideZone = true
+                    isInsizeZone = true
                     currentProperty = property
                 else
-                    insideZone = false
+                    isInsizeZone = false
                     currentProperty = nil
                 end
             end)
+        end
+
+        if property.doors then
+            for _, door in ipairs(property.doors) do
+                print("Registering door: " .. door.doorHash)
+                AddDoorToSystem(door.doorHash, door.modelHash, door.coords.x, door.coords.y, door.coords.z, false, true, false)
+            end
+        elseif property.type == "motel" then
+            for _, unit in pairs(property.units) do
+                local door = unit.door
+                print("Registering motel door: " .. door.doorHash)
+                AddDoorToSystem(door.doorHash, door.modelHash, door.coords.x, door.coords.y, door.coords.z, false, true, false)
+            end
         end
     end
 end)
 
 CreateThread(function()
     local waitTime = 500
-    local actionType = nil
-    local actionPropertyId = nil
-    local actionUnitId = nil
+    local actionType, unitId
 
     while true do
-        if insideZone and currentProperty then
+        if isInsizeZone and currentProperty then
             local isNearSomething = false
-            local property = currentProperty
-            local propertyType = property.type
 
-            if property.stash and IsPlayerNearCoord(property.stash) then
+            if currentProperty.stash and IsPlayerNearCoord(currentProperty.stash) then
                 exports['qb-core']:DrawText("Press [E] to access property stash")
                 actionType = "stash"
-                actionPropertyId = currentProperty
                 isNearSomething = true
             end
-            
-            for _, door in ipairs(property.doors or {}) do
+
+            for _, door in ipairs(currentProperty.doors or {}) do
                 if IsPlayerNearCoord(door.coords) then
                     exports['qb-core']:DrawText("Press [E] to use property door")
                     actionType = "door"
-                    actionPropertyId = currentProperty
                     isNearSomething = true
                     break
                 end
             end
 
-            if propertyType == "house" then
-            elseif propertyType == "mansion" then
-                for unitId, unit in pairs(property.units or {}) do
-                    if unit.stash and IsPlayerNearCoord(unit.stash) then
-                        exports['qb-core']:DrawText("Press [E] to access unit stash")
-                        actionType = "unit_stash"
-                        actionPropertyId = currentProperty
-                        actionUnitId = unitId
-                        isNearSomething = true
-                        break
-                    elseif unit.door and IsPlayerNearCoord(unit.door.coords) then
-                        exports['qb-core']:DrawText("Press [E] to use unit door")
-                        actionType = "unit_door"
-                        actionPropertyId = currentProperty
-                        actionUnitId = unitId
-                        isNearSomething = true
-                        break
-                    end
-                end
-            elseif propertyType == "motel" then
-                for unitId, unit in ipairs(property.units or {}) do
+            if currentProperty.type == "mansion" or currentProperty.type == "motel" then
+                for id, unit in pairs(currentProperty.units or {}) do
                     if unit.stash and IsPlayerNearCoord(unit.stash) then
                         exports['qb-core']:DrawText("Press [E] to unlock door")
                         actionType = "unit_stash"
-                        actionPropertyId = currentProperty
-                        actionUnitId = unitId
+                        unitId = id
                         isNearSomething = true
                         break
                     elseif unit.door and IsPlayerNearCoord(unit.door.coords) then
                         exports['qb-core']:DrawText("Press [E] to unlock door")
                         actionType = "unit_door"
-                        actionPropertyId = currentProperty
-                        actionUnitId = unitId
+                        unitId = id
                         isNearSomething = true
                         break
                     end
                 end
             end
 
-            if IsControlJustPressed(0, 38) and actionType and actionPropertyId then
-                if actionType == "stash" then
-                    QBCore.Functions.Notify('Accessing property stash!', 'success')
-                elseif actionType == "door" then
-                    QBCore.Functions.Notify('Using property door!', 'success')
-                elseif actionType == "unit_stash" then
-                    QBCore.Functions.Notify('Accessing unit stash!', 'success')
-                elseif actionType == "unit_door" then
-                    QBCore.Functions.Notify('Using unit door!', 'success')
-                end
+            if IsControlJustPressed(0, 38) and actionType then
+                HandleAction(actionType, currentProperty, unitId)
             end
 
             if not isNearSomething then
-                actionType = nil
-                actionPropertyId = nil
-                actionUnitId = nil
+                actionType, unitId = nil, nil
                 exports['qb-core']:HideText()
                 waitTime = 500
             else
@@ -130,42 +135,7 @@ CreateThread(function()
     end
 end)
 
-
-
-
-
-
--- CreateThread(function()
---     local waitTime = 500
-
---     while true do
---         print("This loop is running")
---         if insideZone and currentProperty then
---             local isNearSomething = false
-
---             for roomId, room in pairs(currentProperty.rooms) do
---                 if IsPlayerNearCoord(room.stash) then
---                     exports['qb-core']:DrawText("Press [E] to access stash")
---                     isNearSomething = true
---                     waitTime = 5
---                     break 
---                 elseif IsPlayerNearCoord(room.door.coords) then
---                     exports['qb-core']:DrawText("Press [E] to use door")
---                     isNearSomething = true
---                     waitTime = 5
---                     break
---                 else
---                     waitTime = 500 
---                 end
---             end
-
---             if not isNearSomething then
---                 waitTime = 500
---             end
---         else
---             waitTime = 1000
---         end
-
---         Wait(waitTime)
---     end
--- end)
+RegisterNetEvent('smb_properties:client:SetDoorState')
+AddEventHandler('smb_properties:client:SetDoorState', function(name, doorHash, state)
+    SetDoorState(doorHash, state)
+end)
