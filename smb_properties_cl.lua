@@ -2,6 +2,7 @@ local QBCore = exports['qb-core']:GetCoreObject()
 local isInsizeZone = false
 local displayDistance = 2.0
 local currentProperty = nil
+local ClientDoorStates = {}
 
 local function IsPlayerNearCoord(coord)
     local playerCoord = GetEntityCoords(PlayerPedId())
@@ -135,7 +136,16 @@ CreateThread(function()
     end
 end)
 
+RegisterNetEvent('smb_properties:client:InitializeDoorStates')
+AddEventHandler('smb_properties:client:InitializeDoorStates', function(serverDoorStates)
+    ClientDoorStates = serverDoorStates
+    for doorHash, state in pairs(ClientDoorStates) do
+        SetDoorState(doorHash, state)
+    end
+end)
+
 RegisterNetEvent('smb_properties:client:SetDoorState')
 AddEventHandler('smb_properties:client:SetDoorState', function(name, doorHash, state)
+    ClientDoorStates[doorHash] = state
     SetDoorState(doorHash, state)
 end)

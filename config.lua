@@ -2,7 +2,7 @@ Config = {}
 
 Config.Properties = {
     ["pinkcage"] = {
-        name = "pinkcage"
+        name = "pinkcage",
         type = "motel",
         coords = {x = -1919.7110595704, y = 3022.0185546875, z = 53.8},
         units = {
