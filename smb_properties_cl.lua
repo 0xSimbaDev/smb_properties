@@ -107,11 +107,11 @@ CreateThread(function()
     for propertyName, property in pairs(Config.Properties) do
 
         if property.polyZone then
-            local zone = PolyZone:Create(property.polyZone, {
+            local zone = PolyZone:Create(property.polyZone.points, {
                 name = propertyName,
-                debugPoly = false,
-                minZ = property.coords.z - 10.0,
-                maxZ = property.coords.z + 7.0
+                debugPoly = true,
+                minZ = property.polyZone.minZ,
+                maxZ = property.polyZone.maxZ
             })
 
             zone:onPlayerInOut(function(isPointInside)
