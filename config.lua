@@ -4,24 +4,25 @@ Config.Properties = {
     ["pinkcage"] = {
         name = "pinkcage",
         type = "motel",
-        coords = {x = -1919.7110595704, y = 3022.0185546875, z = 53.8},
+        blipCoords = vec3(306.848938, -213.674500, 54.371540),
         purchasePrice = 15000000,
         isPropertySold = true,
         units = {
+            -- add units below this object otittttttttsssssssss
             [1] = {
-                clothinCoords = vec3(0, 0, 0), -- Edit mo to
+                clothinCoords = vec3(302.44, -207.36, 54.23), -- Edit mo to
                 door = {
                     coords = vec3(306.848938, -213.674500, 54.371540), 
                     locked = true,
-                    doorHash = `pinkcage_unit_1`,
+                    doorHash = `pinkcage_unit1`,
                     modelHash = -1156992775,
                 },
                 stash = {
                     coords = vec3(307.02, -207.97, 54.22),
                     ids = {
-                        'pinkcage_unit1_stash_1',
-                        'pinkcage_unit1_stash_2',
-                        'pinkcage_unit1_stash_3',
+                        'pinkcage_unit1_stash1',
+                        'pinkcage_unit1_stash2',
+                        'pinkcage_unit1_stash3',
                     },
                 },
             },
@@ -30,15 +31,15 @@ Config.Properties = {
                 door = {
                     coords = vec3(310.64, -203.79, 54.37), 
                     locked = true,
-                    doorHash = `pinkcage_unit_2`,
+                    doorHash = `pinkcage_unit2`,
                     modelHash = -1156992775,
                 },
                 stash = {
                     coords = vec3(310.69, -198.1, 54.76),
                     ids = {
-                        'pinkcage_unit2_stash_1',
-                        'pinkcage_unit2_stash_2',
-                        'pinkcage_unit2_stash_3',
+                        'pinkcage_unit2_stash1',
+                        'pinkcage_unit2_stash2',
+                        'pinkcage_unit2_stash3',
                     },
                 },
             },    
