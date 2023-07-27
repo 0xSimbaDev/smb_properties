@@ -5,22 +5,43 @@ Config.Properties = {
         name = "pinkcage",
         type = "motel",
         coords = {x = -1919.7110595704, y = 3022.0185546875, z = 53.8},
+        purchasePrice = 15000000,
+        isPropertySold = true,
         units = {
             [1] = {
                 coords = {x = 123.4, y = 567.8, z = 910.11},
                 door = {
                     coords = vec3(306.848938, -213.674500, 54.371540), 
-                    locked = false,
+                    locked = true,
                     doorHash = `pinkcage_unit_1`,
                     modelHash = -1156992775,
                 },
-                stash = {x = 123.4, y = 567.8, z = 910.11},
-                isAvailableForRent = true,
-                rentDetails = {
-                    cost = 500, 
-                    duration = "week"
-                }
-            },  
+                stash = {
+                    coords = vec3(307.02, -207.97, 54.22),
+                    ids = {
+                        'pinkcage_unit1_stash_1',
+                        'pinkcage_unit1_stash_2',
+                        'pinkcage_unit1_stash_3',
+                    },
+                },
+            },
+            [2] = {
+                coords = {x = 123.4, y = 567.8, z = 910.11},
+                door = {
+                    coords = vec3(310.64, -203.79, 54.37), 
+                    locked = true,
+                    doorHash = `pinkcage_unit_2`,
+                    modelHash = -1156992775,
+                },
+                stash = {
+                    coords = vec3(310.69, -198.1, 54.76),
+                    ids = {
+                        'pinkcage_unit2_stash_1',
+                        'pinkcage_unit2_stash_2',
+                        'pinkcage_unit2_stash_3',
+                    },
+                },
+            },    
         },
         polyZone = {
             vector2(358.58950805664, -198.37442016602),
