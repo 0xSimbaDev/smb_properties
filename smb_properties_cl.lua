@@ -95,6 +95,8 @@ local function HandleAction(actionType, property, unitId)
         local door = property.units[unitId].door
         doorAnim()
         ToggleDoorState(door, unitId)
+    elseif actionType == "unit_clothing" then
+        TriggerEvent('smb_properties:client:ChangeOutfit')
     end
 end
 
@@ -166,6 +168,12 @@ CreateThread(function()
                     if unit.stash and IsPlayerNearCoord(unit.stash.coords) then
                         exports['qb-core']:DrawText("Press [E] to open stash")
                         actionType = "unit_stash"
+                        unitId = id
+                        isNearSomething = true
+                        break
+                    elseif unit.clothinCoords and IsPlayerNearCoord(unit.clothinCoords) then
+                        exports['qb-core']:DrawText("Press [E] to open clothing")
+                        actionType = "unit_clothing"
                         unitId = id
                         isNearSomething = true
                         break
@@ -440,4 +448,9 @@ RegisterNetEvent('smb_properties:client:ShowTenantList', function(data)
 
         exports['qb-menu']:openMenu(tenantMenu)
     end, unitNumber)
+end)
+
+RegisterNetEvent('smb_properties:client:ChangeOutfit', function()
+    TriggerServerEvent("InteractSound_SV:PlayOnSource", "Clothes1", 0.4)
+    TriggerEvent('qb-clothing:client:openOutfitMenu')
 end)

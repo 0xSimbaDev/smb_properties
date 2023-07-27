@@ -95,7 +95,7 @@ end
 
 Citizen.CreateThread(function()
     while true do
-        Citizen.Wait(10000) 
+        Citizen.Wait(1800000) --  30 minutes
 
         for _, src in ipairs(GetPlayers()) do
             IsTenant(tonumber(src), function(isPlayerTenant)
