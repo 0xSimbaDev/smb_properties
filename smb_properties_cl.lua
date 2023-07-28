@@ -104,7 +104,7 @@ end
 
 local function RegisterDoor(door)
     print("Registering door: " .. door.doorHash)
-    AddDoorToSystem(door.doorHash, door.modelHash, door.coords.x, door.coords.y, door.coords.z, false, true, false)
+    AddDoorToSystem(door.doorHash, door.modelHash, door.coords.x, door.coords.y, door.coords.z, false, false, false)
 end
 
 CreateThread(function()
@@ -171,7 +171,7 @@ CreateThread(function()
                         isNearSomething = true
                         break
                     elseif unit.door and IsPlayerNearCoord(unit.door.coords) then
-                        exports['qb-core']:DrawText("Press [E] to unlock door")
+                        exports['qb-core']:DrawText("Unit " .. id .. " | Press [E] to unlock door")
                         actionType = "unit_door"
                         unitId = id
                         isNearSomething = true
@@ -257,19 +257,19 @@ AddEventHandler('smb_properties:client:ManageProperty', function()
                 txt = "You do not have access to manage this property as a tenant.",
                 icon = 'fas fa-user-slash'
             })
-
-            table.insert(elements, {
-                header = 'View Available Units',
-                txt = 'View the available units in this property',
-                icon = 'fas fa-home',
-                params = {
-                    event = 'smb_properties:client:ViewAvailableUnits',
-                    args = {
-                        propertyName = propertyName
-                    }
-                }
-            })
         end
+
+        table.insert(elements, {
+            header = 'View Available Units',
+            txt = 'View the available units in this property',
+            icon = 'fas fa-home',
+            params = {
+                event = 'smb_properties:client:ViewAvailableUnits',
+                args = {
+                    propertyName = propertyName
+                }
+            }
+        })
 
         exports['qb-menu']:openMenu(elements)
     end, propertyName)
@@ -361,7 +361,8 @@ AddEventHandler('smb_properties:client:ViewAvailableUnits', function(data)
                         event = 'smb_properties:client:RentUnit',
                         args = {
                             unitID = unit.unitID,
-                            propertyName = propertyName
+                            propertyName = propertyName,
+                            rentCost = rentCost,
                         }
                     }
                 })
@@ -670,4 +671,19 @@ end)
 RegisterNetEvent('smb_properties:client:ChangeOutfit', function()
     TriggerServerEvent("InteractSound_SV:PlayOnSource", "Clothes1", 0.4)
     TriggerEvent('qb-clothing:client:openOutfitMenu')
+end)
+
+RegisterNetEvent('smb_properties:client:RentUnit')
+AddEventHandler('smb_properties:client:RentUnit', function(data)
+    local unitID = data.unitID
+    local propertyName = data.propertyName
+    local rentCost = data.rentCost
+
+    QBCore.Functions.TriggerCallback('smb_properties:server:RentUnit', function(success, message)
+        if success then
+            QBCore.Functions.Notify("Successfully rented the unit! Monthly rent: $" .. rentCost, "success")
+        else
+            QBCore.Functions.Notify(message, "error")
+        end
+    end, unitID, propertyName)
 end)

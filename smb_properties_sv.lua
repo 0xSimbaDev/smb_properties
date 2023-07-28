@@ -1,7 +1,7 @@
 local QBCore = exports['qb-core']:GetCoreObject()
 
 local DoorStates = {}
-local DEBUG_MODE = true  
+local DEBUG_MODE = false  
 
 local function debugPrint(message)
     if DEBUG_MODE then
@@ -119,7 +119,7 @@ end
 
 Citizen.CreateThread(function()
     while true do
-        Citizen.Wait(60000) --  30 minutes
+        Citizen.Wait(1800000) --  30 minutes
 
         for _, src in ipairs(GetPlayers()) do
             IsTenant(tonumber(src), function(isPlayerTenant)
@@ -432,7 +432,7 @@ end)
 
 QBCore.Functions.CreateCallback('smb_properties:server:GetAvailableUnits', function(source, cb, propertyName)
     local query = [[
-        SELECT u.unitID, u.propertyName, u.rentCost, IFNULL(t.tenantCount, 0) as tenantCount
+        SELECT u.unitID, u.propertyName, u.rentCost, IFNULL(t.tenantCount, 0) as tenantCount, u.isAvailable
         FROM smb_properties_units u
         LEFT JOIN (
             SELECT unitID, COUNT(*) as tenantCount
@@ -440,29 +440,44 @@ QBCore.Functions.CreateCallback('smb_properties:server:GetAvailableUnits', funct
             WHERE status = 'active'
             GROUP BY unitID
         ) t ON u.unitID = t.unitID
-        WHERE u.propertyName = @propertyName
+        WHERE u.propertyName = @propertyName AND u.isAvailable = 1
     ]]
 
-    MySQL.Async.fetchAll(query, { ['@propertyName'] = propertyName }, function(units)
+    MySQL.Async.fetchAll(query, { ['@propertyName'] = propertyName }, function(units, err)
+        if err then
+            debugPrint("Callback: Error executing SQL query:", err)
+            cb(nil)
+            return
+        end
+
         debugPrint("Callback: Units retrieved from the database.")
         debugPrint("Callback: Property Name: " .. propertyName)
 
         if units then
+            local availableUnits = {}
             for _, unit in ipairs(units) do
                 local unitID = unit.unitID
                 local tenantCount = unit.tenantCount or 0
                 local availableSlots = 3 - tenantCount
+                local tenantStatus = tenantCount == 3 and "Fully Occupied" or "Vacant (" .. availableSlots .. " slots available)"
                 local rentCost = unit.rentCost
 
                 debugPrint("Unit ID: " .. unitID)
                 debugPrint("Tenant Count: " .. tenantCount)
                 debugPrint("Available Slots: " .. availableSlots)
-                debugPrint("Rent Cost: " .. rentCost)
+
+                table.insert(availableUnits, {
+                    unitID = unitID,
+                    tenantCount = tenantCount,
+                    availableSlots = availableSlots,
+                    tenantStatus = tenantStatus,
+                    rentCost = rentCost
+                })
             end
 
-            if #units > 0 then
+            if #availableUnits > 0 then
                 debugPrint("Callback: Units found.")
-                cb(units)
+                cb(availableUnits)
             else
                 debugPrint("Callback: No units found for the specified property.")
                 cb(nil)
@@ -471,5 +486,90 @@ QBCore.Functions.CreateCallback('smb_properties:server:GetAvailableUnits', funct
             debugPrint("Callback: No units found for the specified property.")
             cb(nil)
         end
+    end)
+end)
+
+QBCore.Functions.CreateCallback('smb_properties:server:RentUnit', function(source, cb, unitID, propertyName)
+    local player = QBCore.Functions.GetPlayer(source)
+    local citizenID = player.PlayerData.citizenid
+
+    local query = [[
+        SELECT *
+        FROM smb_properties_tenants
+        WHERE unitID = @unitID AND citizenID = @citizenID
+    ]]
+
+    MySQL.Async.fetchAll(query, {
+        ['@unitID'] = unitID,
+        ['@citizenID'] = citizenID
+    }, function(existingTenant, err)
+        if err then
+            debugPrint("RentUnit: Error executing SQL query:", err)
+            cb(false, "An error occurred while processing your request.")
+            return
+        end
+
+        if existingTenant and #existingTenant > 0 then
+            cb(false, "You have already rented this unit.")
+            return
+        end
+
+        local query2 = [[
+            SELECT tenantCount, rentCost
+            FROM smb_properties_units
+            LEFT JOIN (
+                SELECT unitID, COUNT(*) as tenantCount
+                FROM smb_properties_tenants
+                WHERE status = 'active'
+                GROUP BY unitID
+            ) t ON smb_properties_units.unitID = t.unitID
+            WHERE smb_properties_units.unitID = @unitID AND smb_properties_units.propertyName = @propertyName
+        ]]
+
+        MySQL.Async.fetchAll(query2, {
+            ['@unitID'] = unitID,
+            ['@propertyName'] = propertyName
+        }, function(unitInfo, err2)
+            if err2 then
+                debugPrint("RentUnit: Error executing SQL query:", err2)
+                cb(false, "An error occurred while processing your request.")
+                return
+            end
+
+            if unitInfo and #unitInfo > 0 then
+                local tenantCount = unitInfo[1].tenantCount or 0
+                local rentCost = unitInfo[1].rentCost
+                local availableSlots = 3 - tenantCount
+
+                if availableSlots > 0 then
+                    local stash_id = Config.Properties[propertyName].units[unitID].stash.ids[tenantCount + 1]
+
+                    local insertQuery = [[
+                        INSERT INTO smb_properties_tenants (unitID, citizenID, status, citizenName, stash_id)
+                        VALUES (@unitID, @citizenID, @status, @citizenName, @stash_id)
+                    ]]
+                
+                    MySQL.Async.execute(insertQuery, {
+                        ['@unitID'] = unitID,
+                        ['@citizenID'] = citizenID,
+                        ['@status'] = 'active',
+                        ['@citizenName'] = player.PlayerData.charinfo.firstname .. ' ' .. player.PlayerData.charinfo.lastname,
+                        ['@stash_id'] = stash_id
+                    }, function(rowsInserted, err3)
+                        if err3 then
+                            debugPrint("RentUnit: Error executing SQL query:", err3)
+                            cb(false, "An error occurred while processing your request.")
+                            return
+                        end
+
+                        cb(true, "Unit rented successfully! Monthly rent: $" .. rentCost)
+                    end)
+                else
+                    cb(false, "This unit is fully occupied.")
+                end
+            else
+                cb(false, "Invalid unit ID or property name.")
+            end
+        end)
     end)
 end)
