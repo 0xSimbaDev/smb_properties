@@ -429,3 +429,47 @@ QBCore.Functions.CreateCallback('smb_properties:server:FetchAmountDue', function
         end
     end)
 end)
+
+QBCore.Functions.CreateCallback('smb_properties:server:GetAvailableUnits', function(source, cb, propertyName)
+    local query = [[
+        SELECT u.unitID, u.propertyName, u.rentCost, IFNULL(t.tenantCount, 0) as tenantCount
+        FROM smb_properties_units u
+        LEFT JOIN (
+            SELECT unitID, COUNT(*) as tenantCount
+            FROM smb_properties_tenants
+            WHERE status = 'active'
+            GROUP BY unitID
+        ) t ON u.unitID = t.unitID
+        WHERE u.propertyName = @propertyName
+    ]]
+
+    MySQL.Async.fetchAll(query, { ['@propertyName'] = propertyName }, function(units)
+        debugPrint("Callback: Units retrieved from the database.")
+        debugPrint("Callback: Property Name: " .. propertyName)
+
+        if units then
+            for _, unit in ipairs(units) do
+                local unitID = unit.unitID
+                local tenantCount = unit.tenantCount or 0
+                local availableSlots = 3 - tenantCount
+                local rentCost = unit.rentCost
+
+                debugPrint("Unit ID: " .. unitID)
+                debugPrint("Tenant Count: " .. tenantCount)
+                debugPrint("Available Slots: " .. availableSlots)
+                debugPrint("Rent Cost: " .. rentCost)
+            end
+
+            if #units > 0 then
+                debugPrint("Callback: Units found.")
+                cb(units)
+            else
+                debugPrint("Callback: No units found for the specified property.")
+                cb(nil)
+            end
+        else
+            debugPrint("Callback: No units found for the specified property.")
+            cb(nil)
+        end
+    end)
+end)

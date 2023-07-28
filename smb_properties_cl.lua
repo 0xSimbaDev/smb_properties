@@ -257,6 +257,18 @@ AddEventHandler('smb_properties:client:ManageProperty', function()
                 txt = "You do not have access to manage this property as a tenant.",
                 icon = 'fas fa-user-slash'
             })
+
+            table.insert(elements, {
+                header = 'View Available Units',
+                txt = 'View the available units in this property',
+                icon = 'fas fa-home',
+                params = {
+                    event = 'smb_properties:client:ViewAvailableUnits',
+                    args = {
+                        propertyName = propertyName
+                    }
+                }
+            })
         end
 
         exports['qb-menu']:openMenu(elements)
@@ -318,6 +330,52 @@ AddEventHandler('smb_properties:client:OwnerManagement', function(data)
     end
 
     exports['qb-menu']:openMenu(elements)
+end)
+
+RegisterNetEvent('smb_properties:client:ViewAvailableUnits')
+AddEventHandler('smb_properties:client:ViewAvailableUnits', function(data)
+    local propertyName = data.propertyName
+
+    QBCore.Functions.TriggerCallback('smb_properties:server:GetAvailableUnits', function(units)
+        local elements = {
+            {
+                header = 'Available Units',
+                icon = 'fas fa-home',
+                isMenuHeader = true
+            }
+        }
+
+        if units and #units > 0 then
+            for _, unit in ipairs(units) do
+
+                local tenantCount = unit.tenantCount or 0
+                local availableSlots = 3 - tenantCount
+                local tenantStatus = tenantCount == 3 and "Fully Occupied" or "Vacant | Avaible Slots: " .. availableSlots
+                local rentCost = unit.rentCost
+
+                table.insert(elements, {
+                    header = "Unit " .. unit.unitID  .. " | Rent Cost: $" .. rentCost,
+                    txt = "Status: " .. tenantStatus .. " | Tenants: " .. tenantCount,
+                    icon = 'fas fa-building',
+                    params = {
+                        event = 'smb_properties:client:RentUnit',
+                        args = {
+                            unitID = unit.unitID,
+                            propertyName = propertyName
+                        }
+                    }
+                })
+            end
+        else
+            table.insert(elements, {
+                header = "No available units in this property.",
+                txt = "All units are occupied by tenants.",
+                icon = 'fas fa-user-slash'
+            })
+        end
+
+        exports['qb-menu']:openMenu(elements)
+    end, propertyName)
 end)
 
 RegisterNetEvent('smb_properties:client:ManageUnit', function(data)
