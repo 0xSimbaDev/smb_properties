@@ -97,6 +97,8 @@ local function HandleAction(actionType, property, unitId)
         ToggleDoorState(door, unitId)
     elseif actionType == "unit_clothing" then
         TriggerEvent('smb_properties:client:ChangeOutfit')
+    elseif actionType == "unit_management" then
+        TriggerEvent('smb_properties:client:ManageProperty')
     end
 end
 
@@ -148,22 +150,13 @@ CreateThread(function()
         if isInsizeZone and currentProperty then
             local isNearSomething = false
 
-            if currentProperty.stash and IsPlayerNearCoord(currentProperty.stash) then
-                exports['qb-core']:DrawText("Press [E] to access property stash")
-                actionType = "stash"
+            if not isNearSomething and currentProperty.management and IsPlayerNearCoord(currentProperty.management.coords) then
+                exports['qb-core']:DrawText("Press [E] to manage property")
+                actionType = "unit_management"
                 isNearSomething = true
             end
 
-            for _, door in ipairs(currentProperty.doors or {}) do
-                if IsPlayerNearCoord(door.coords) then
-                    exports['qb-core']:DrawText("Press [E] to use property door")
-                    actionType = "door"
-                    isNearSomething = true
-                    break
-                end
-            end
-
-            if currentProperty.type == "mansion" or currentProperty.type == "motel" then
+            if not isNearSomething and (currentProperty.type == "mansion" or currentProperty.type == "motel") then
                 for id, unit in pairs(currentProperty.units or {}) do
                     if unit.stash and IsPlayerNearCoord(unit.stash.coords) then
                         exports['qb-core']:DrawText("Press [E] to open stash")
@@ -220,7 +213,10 @@ AddEventHandler('smb_properties:client:SetDoorState', function(name, doorHash, s
     SetDoorState(doorHash, state)
 end)
 
-RegisterCommand('propertymenu', function()
+RegisterNetEvent('smb_properties:client:ManageProperty')
+AddEventHandler('smb_properties:client:ManageProperty', function()
+    local propertyName = currentProperty.name
+
     local elements = {
         {
             header = 'Property Management',
@@ -229,30 +225,52 @@ RegisterCommand('propertymenu', function()
         }
     }
 
-    for k, property in pairs(Config.Properties) do
-        table.insert(elements, {
-            header = property.name,
-            txt = 'Manage this property',
-            icon = 'fas fa-building',
-            params = {
-                event = 'smb_properties:client:manageProperty',
-                args = {
-                    propertyName = k
-                }
-            }
-        })
-    end
+    QBCore.Functions.TriggerCallback('smb_properties:server:GetPlayerRole', function(role)
 
-    exports['qb-menu']:openMenu(elements)
+        if role == "owner" then
+            table.insert(elements, {
+                header = propertyName,
+                txt = 'Manage this property as owner',
+                icon = 'fas fa-building',
+                params = {
+                    event = 'smb_properties:client:OwnerManagement',
+                    args = {
+                        propertyName = propertyName
+                    }
+                }
+            })
+        elseif role == "tenant" then
+            table.insert(elements, {
+                header = propertyName,
+                txt = 'Manage this property as tenant',
+                icon = 'fas fa-building',
+                params = {
+                    event = 'smb_properties:client:TenantManagement',
+                    args = {
+                        propertyName = propertyName
+                    }
+                }
+            })
+        else
+            table.insert(elements, {
+                header = "You are not a tenant in this property.",
+                txt = "You do not have access to manage this property as a tenant.",
+                icon = 'fas fa-user-slash'
+            })
+        end
+
+        exports['qb-menu']:openMenu(elements)
+    end, propertyName)
 end)
 
-RegisterNetEvent('smb_properties:client:manageProperty', function(data)
+RegisterNetEvent('smb_properties:client:TenantManagement')
+AddEventHandler('smb_properties:client:TenantManagement', function(data)
     local propertyName = data.propertyName
-    local property = Config.Properties[propertyName]
+
     local elements = {
         {
-            header = 'Manage ' .. propertyName,
-            icon = 'fas fa-tools',
+            header = 'Property Management',
+            icon = 'fas fa-home',
             isMenuHeader = true
         },
         {
@@ -268,13 +286,29 @@ RegisterNetEvent('smb_properties:client:manageProperty', function(data)
         },
     }
 
+    exports['qb-menu']:openMenu(elements)
+end)
+
+RegisterNetEvent('smb_properties:client:OwnerManagement')
+AddEventHandler('smb_properties:client:OwnerManagement', function(data)
+
+    local propertyName = data.propertyName
+    local property = Config.Properties[propertyName]
+    local elements = {
+        {
+            header = 'Manage ' .. propertyName,
+            icon = 'fas fa-tools',
+            isMenuHeader = true
+        }
+    }
+
     for k, unit in pairs(property.units) do
         table.insert(elements, {
             header = 'Unit ' .. k,
             txt = 'Check Availability',
             icon = 'fas fa-door-open',
             params = {
-                event = 'qb-menu:client:manageUnit',
+                event = 'smb_properties:client:ManageUnit',
                 args = {
                     propertyName = propertyName,
                     unitNumber = k
@@ -286,7 +320,7 @@ RegisterNetEvent('smb_properties:client:manageProperty', function(data)
     exports['qb-menu']:openMenu(elements)
 end)
 
-RegisterNetEvent('qb-menu:client:manageUnit', function(data)
+RegisterNetEvent('smb_properties:client:ManageUnit', function(data)
     local propertyName = data.propertyName
     local unitNumber = data.unitNumber
     local unit = Config.Properties[propertyName].units[unitNumber]
