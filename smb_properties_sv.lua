@@ -1,6 +1,13 @@
 local QBCore = exports['qb-core']:GetCoreObject()
 
 local DoorStates = {}
+local DEBUG_MODE = true  
+
+local function debugPrint(message)
+    if DEBUG_MODE then
+        print("[DEBUG]: " .. message)
+    end
+end
 
 local function InitializeDoorStates()
     for propertyName, property in pairs(Config.Properties) do
@@ -32,16 +39,24 @@ local function IsTenant(src, callback)
     end)
 end
 
-local function GetTotalDueAmount(tenantID, callback)
-    local query = "SELECT SUM(amountDue) as totalDue FROM smb_properties_payments WHERE tenantID = @tenantID"
-    MySQL.Async.fetchAll(query, { ['@tenantID'] = tenantID }, function(results)
-        if results and #results > 0 and results[1].totalDue then
-            callback(tonumber(results[1].totalDue))
+local function GetLatestBalance(tenantID, callback)
+    local query = [[
+        SELECT balance 
+        FROM smb_properties_ledger 
+        WHERE tenantID = @tenantID 
+        ORDER BY transactionDate DESC 
+        LIMIT 1
+    ]]
+    
+    MySQL.Async.fetchScalar(query, { ['@tenantID'] = tenantID }, function(balance)
+        if balance then
+            callback(tonumber(balance))
         else
             callback(0)
         end
     end)
 end
+
 
 local function CalculateAndChargeRent(src)
     local player = QBCore.Functions.GetPlayer(src)
@@ -49,53 +64,62 @@ local function CalculateAndChargeRent(src)
     local bankBalance = player.PlayerData.money["bank"]
     local cashBalance = player.PlayerData.money["cash"]
 
-    -- print("[DEBUG] CitizenID:", citizenID, "Bank Balance:", bankBalance, "Cash Balance:", cashBalance) 
+    debugPrint("Processing rent for CitizenID: " .. citizenID)
+    debugPrint("Current Bank Balance: " .. bankBalance)
+    debugPrint("Current Cash Balance: " .. cashBalance)
 
     local query = "SELECT smb_properties_tenants.*, smb_properties_units.*, smb_properties.ownerCitizenID FROM smb_properties_tenants INNER JOIN smb_properties_units ON smb_properties_tenants.unitID = smb_properties_units.unitID INNER JOIN smb_properties ON smb_properties_units.propertyName = smb_properties.propertyName WHERE smb_properties_tenants.citizenID = @citizenID AND smb_properties_tenants.status = 'active'"
 
     MySQL.Async.fetchAll(query, { ['@citizenID'] = citizenID }, function(results)
         if results and #results > 0 then
+            debugPrint("Found " .. #results .. " active tenants for CitizenID: " .. citizenID)
+
             for _, result in ipairs(results) do  
                 local rentAmount = result.rentCost 
                 local tenantID = result.tenantID
-                local propertyOwner = result.ownerCitizenID
 
-                -- print("[DEBUG] Rent Amount:", rentAmount, "TenantID:", tenantID, "Property Owner:", propertyOwner)
+                debugPrint("Processing TenantID: " .. tenantID .. " with Rent Amount: " .. rentAmount)
 
-                local dueAmount = rentAmount - cashBalance - bankBalance
-
-                -- print("[DEBUG] Calculated Due Amount:", dueAmount)
-
-                if dueAmount > 0 then
-                    GetTotalDueAmount(result.tenantID, function(totalDue)
-                        -- print("[DEBUG] Total Due Amount:", totalDue)
-
-                        local paymentQuery = "INSERT INTO smb_properties_payments (tenantID, amountDue) VALUES (@tenantID, @dueAmount)"
-                        MySQL.Async.execute(paymentQuery, { ['@tenantID'] = result.tenantID, ['@dueAmount'] = dueAmount })
-
-                        if totalDue + dueAmount >= 10000 then
+                if cashBalance + bankBalance < rentAmount then
+                    local dueAmount = rentAmount - cashBalance - bankBalance
+                    GetLatestBalance(tenantID, function(latestBalance)
+                        local balanceAfterTransaction = latestBalance + dueAmount  
+                        
+                        local ledgerQuery = "INSERT INTO smb_properties_ledger (tenantID, description, amount, balance, transactionType) VALUES (@tenantID, 'Monthly Rent', @dueAmount, @balanceAfterTransaction, 'Charge')"
+                        MySQL.Async.execute(ledgerQuery, { ['@tenantID'] = tenantID, ['@dueAmount'] = dueAmount, ['@balanceAfterTransaction'] = balanceAfterTransaction })
+                        
+                        if balanceAfterTransaction >= 10000 then
                             local evictionQuery = "UPDATE smb_properties_tenants SET status = 'evicted' WHERE tenantID = @tenantID"
-                            MySQL.Async.execute(evictionQuery, { ['@tenantID'] = result.tenantID })
+                            MySQL.Async.execute(evictionQuery, { ['@tenantID'] = tenantID })
+                            debugPrint("TenantID: " .. tenantID .. " evicted due to high debt!")
                         end
                     end)
                 else
+                
                     local remainingBalance = cashBalance + bankBalance - rentAmount
-                    -- print("[DEBUG] Remaining Balance after rent deduction:", remainingBalance) 
+                    debugPrint("Sufficient funds. New balance after rent deduction: " .. remainingBalance)
+
                     if remainingBalance > cashBalance then
                         player.Functions.RemoveMoney('cash', cashBalance)
                         player.Functions.RemoveMoney('bank', remainingBalance - cashBalance)
                     else
                         player.Functions.RemoveMoney('cash', rentAmount)
                     end
+
+                    local ledgerQuery = "INSERT INTO smb_properties_ledger (tenantID, description, amount, balance, transactionType) VALUES (@tenantID, 'Rent Payment', @rentAmount, 0, 'Payment')"
+                    MySQL.Async.execute(ledgerQuery, { ['@tenantID'] = tenantID, ['@rentAmount'] = -rentAmount })
+                    debugPrint("Rent payment logged for TenantID: " .. tenantID)
                 end
             end
+        else
+            debugPrint("No active tenants found for CitizenID: " .. citizenID)
         end
     end)
 end
 
 Citizen.CreateThread(function()
     while true do
-        Citizen.Wait(1800000) --  30 minutes
+        Citizen.Wait(180000000) --  30 minutes
 
         for _, src in ipairs(GetPlayers()) do
             IsTenant(tonumber(src), function(isPlayerTenant)
@@ -124,28 +148,6 @@ AddEventHandler('playerConnecting', function(playerName, setKickReason, deferral
     local src = source
     TriggerClientEvent('smb_properties:client:InitializeDoorStates', src, DoorStates)
 end)
-
--- QBCore.Functions.CreateCallback('smb_properties:server:GetPropertyData', function(source, cb, propertyName, unitID)
-
---     if not propertyName or not unitID then
---         print("[Error] smb_properties:server:GetPropertyData - Invalid inputs")
---         cb(nil)
---         return
---     end
-
---     local query = "SELECT * FROM smb_properties WHERE propertyName = @propertyName AND unitID = @unitID"
---     MySQL.Async.fetchAll(query, {
---         ['@propertyName'] = propertyName,
---         ['@unitID'] = unitID
---     }, function(result)
---         if result and result[1] then
---             cb(result[1])
---         else
---             print("[Warning] smb_properties:server:GetPropertyData - No result found for propertyName:", propertyName, "and unitID:", unitID)
---             cb(nil)
---         end
---     end)
--- end)
 
 QBCore.Functions.CreateCallback('smb_properties:server:GetAccessData', function(source, cb, propertyName, unitID)
     local src = source
@@ -280,12 +282,18 @@ end)
 
 QBCore.Functions.CreateCallback('smb_properties:server:GetTenantsDetails', function(source, cb, unitNumber)
     local query = [[
-        SELECT t.tenantID, t.unitID, t.citizenName, t.status, 
-               SUM(p.amountDue) as totalDue
+        SELECT t.tenantID, t.unitID, t.citizenName, t.status, COALESCE(l.balance, 0) as totalDue
         FROM smb_properties_tenants AS t 
-        JOIN smb_properties_payments AS p ON t.tenantID = p.tenantID 
+        LEFT JOIN (
+            SELECT l1.tenantID, l1.balance
+            FROM smb_properties_ledger l1
+            JOIN (
+                SELECT tenantID, MAX(transactionDate) as latestDate
+                FROM smb_properties_ledger
+                GROUP BY tenantID
+            ) AS l2 ON l1.tenantID = l2.tenantID AND l1.transactionDate = l2.latestDate
+        ) AS l ON t.tenantID = l.tenantID
         WHERE t.unitID = @unitID
-        GROUP BY t.tenantID, t.unitID, t.citizenName, t.status
     ]]
 
     MySQL.Async.fetchAll(query, { ['@unitID'] = unitNumber }, function(tenants)
@@ -298,52 +306,86 @@ QBCore.Functions.CreateCallback('smb_properties:server:GetTenantsDetails', funct
 end)
 
 
+QBCore.Functions.CreateCallback('smb_properties:server:GetRentedUnits', function(source, cb, propertyName)
+    local src = source
+    local citizenID = QBCore.Functions.GetPlayer(src).PlayerData.citizenid
 
+    local query = [[
+        SELECT t.tenantID, t.unitID, COALESCE(l.balance, 0) as totalAmountDue
+        FROM smb_properties_tenants t
+        JOIN smb_properties_units u ON t.unitID = u.unitID
+        JOIN smb_properties p ON u.propertyName = p.propertyName
+        LEFT JOIN (
+            SELECT l1.tenantID, MAX(l1.transactionDate) as latestDate, l1.balance
+            FROM smb_properties_ledger l1
+            JOIN (
+                SELECT tenantID, MAX(transactionDate) as maxDate
+                FROM smb_properties_ledger
+                GROUP BY tenantID
+            ) AS l2 ON l1.tenantID = l2.tenantID AND l1.transactionDate = l2.maxDate
+            GROUP BY l1.tenantID, l1.balance
+        ) AS l ON t.tenantID = l.tenantID
+        WHERE t.citizenID = ? AND t.status = 'active' AND p.propertyName = ?
+        GROUP BY t.tenantID, t.unitID, l.balance
+    ]]
 
+    MySQL.Async.fetchAll(query, { citizenID, propertyName }, function(results)
+        if results and #results > 0 then
+            cb(results)
+        else
+            cb(nil, "No rented units found for this player in the specified property.")
+        end
+    end)
+end)
 
+QBCore.Functions.CreateCallback('smb_properties:server:PayAmountDue', function(source, cb, tenantID, amountPaid)
+    local src = source
+    local player = QBCore.Functions.GetPlayer(src)
 
+    GetLatestBalance(tenantID, function(prevBalance)
+        
+        if not prevBalance then
+            prevBalance = 0
+        end
 
+        if prevBalance < amountPaid then
+            cb(false, "Amount paid exceeds balance due!")
+            return
+        end
 
+        local cash = player.Functions.GetMoney("cash")
+        local bank = player.Functions.GetMoney("bank")
 
+        if bank >= amountPaid then
+            player.Functions.RemoveMoney('bank', amountPaid)
+            
+            local ledgerQuery = "INSERT INTO smb_properties_ledger (tenantID, description, amount, balance, transactionType) VALUES (?, 'Payment', ?, ?, 'Payment')"
+            MySQL.Async.execute(ledgerQuery, { tenantID, -amountPaid, prevBalance - amountPaid }, function()
+                cb(true, "Payment successful!")
+            end)
+        else
+            cb(false, "Not enough money in the bank account!")
+            return
+        end
+    end)
+end)
 
+QBCore.Functions.CreateCallback('smb_properties:server:FetchAmountDue', function(source, cb, tenantID)
+    local query = [[
+        SELECT COALESCE(l.balance, 0) as totalDue
+        FROM smb_properties_ledger l
+        WHERE l.transactionDate = (
+            SELECT MAX(transactionDate)
+            FROM smb_properties_ledger
+            WHERE tenantID = @tenantID
+        ) AND l.tenantID = @tenantID
+    ]]
 
-
--- QBCore.Functions.CreateCallback('smb_properties:server:GetPropertyData', function(source, cb, propertyName)
---     local query = "SELECT * FROM smb_properties WHERE propertyName = @propertyName"
---     MySQL.Async.fetchAll(query, {
---         ['@propertyName'] = propertyName
---     }, function(result)
---         if result and result[1] then
---             cb(result[1])
---         else
---             cb(nil)
---         end
---     end)
--- end)
-
--- QBCore.Functions.CreateCallback('smb_properties:server:GetUnitsByProperty', function(source, cb, propertyName)
---     local query = "SELECT * FROM smb_properties_units WHERE propertyName = @propertyName"
---     MySQL.Async.fetchAll(query, {
---         ['@propertyName'] = propertyName
---     }, function(units)
---         if units then
---             cb(units)
---         else
---             cb(nil)
---         end
---     end)
--- end)
-
--- QBCore.Functions.CreateCallback('smb_properties:server:GetTenantsByUnit', function(source, cb, unitID)
---     local query = "SELECT * FROM smb_properties_tenants WHERE unitID = @unitID"
---     MySQL.Async.fetchAll(query, {
---         ['@unitID'] = unitID
---     }, function(tenants)
---         if tenants then
---             cb(tenants)
---         else
---             cb(nil)
---         end
---     end)
--- end)
-
+    MySQL.Async.fetchScalar(query, { ['@tenantID'] = tenantID }, function(totalDue)
+        if totalDue then
+            cb(tonumber(totalDue))
+        else
+            cb(0)
+        end
+    end)
+end)
