@@ -119,7 +119,7 @@ end
 
 Citizen.CreateThread(function()
     while true do
-        Citizen.Wait(180000000) --  30 minutes
+        Citizen.Wait(60000) --  30 minutes
 
         for _, src in ipairs(GetPlayers()) do
             IsTenant(tonumber(src), function(isPlayerTenant)
@@ -171,6 +171,46 @@ QBCore.Functions.CreateCallback('smb_properties:server:GetAccessData', function(
     end)
 end)
 
+QBCore.Functions.CreateCallback('smb_properties:server:GetPlayerRole', function(source, cb, propertyName)
+    local src = source
+    local citizenID = QBCore.Functions.GetPlayer(src).PlayerData.citizenid
+
+    local query = "SELECT ownerCitizenID FROM smb_properties WHERE propertyName = @propertyName"
+    MySQL.Async.fetchAll(query, { ['@propertyName'] = propertyName }, function(results)
+        if results[1] and results[1].ownerCitizenID == citizenID then
+            cb("owner")
+        else
+            query = "SELECT COUNT(*) as count FROM smb_properties_tenants WHERE unitID IN (SELECT unitID FROM smb_properties_units WHERE propertyName = @propertyName) AND citizenID = @citizenID AND status = 'active'"
+            MySQL.Async.fetchAll(query, { ['@propertyName'] = propertyName, ['@citizenID'] = citizenID }, function(tenants)
+                if tenants and #tenants > 0 and tenants[1].count > 0 then
+                    cb("tenant")
+                else
+                    cb("none")
+                end
+            end)
+        end
+    end)
+end)
+
+QBCore.Functions.CreateCallback('smb_properties:server:CheckOwnership', function(source, cb, propertyName)
+    local src = source
+    local player = QBCore.Functions.GetPlayer(src)
+    local citizenID = player.PlayerData.citizenid
+
+    local query = [[
+        SELECT ownerCitizenID 
+        FROM smb_properties 
+        WHERE propertyName = @propertyName
+    ]]
+
+    MySQL.Async.fetchAll(query, { ['@propertyName'] = propertyName }, function(results)
+        if results and #results > 0 and results[1].ownerCitizenID == citizenID then
+            cb(true)
+        else
+            cb(false)
+        end
+    end)
+end)
 
 QBCore.Functions.CreateCallback('smb_properties:server:CheckStashAccess', function(source, cb, stashID)
     local src = source
