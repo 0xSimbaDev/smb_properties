@@ -254,7 +254,18 @@ RegisterNetEvent('smb_properties:client:manageProperty', function(data)
             header = 'Manage ' .. propertyName,
             icon = 'fas fa-tools',
             isMenuHeader = true
-        }
+        },
+        {
+            header = 'My Rented Units',
+            txt = 'View units you are renting',
+            icon = 'fas fa-list-ul',
+            params = {
+                event = 'smb_properties:client:ShowRentedUnits',
+                args = {
+                    propertyName = propertyName
+                }
+            }
+        },
     }
 
     for k, unit in pairs(property.units) do
@@ -311,8 +322,8 @@ RegisterNetEvent('qb-menu:client:manageUnit', function(data)
             }
         },
         {
-            header = 'Show Tenant List',
-            txt = 'Remove a tenant from this unit',
+            header = 'Tenant List',
+            txt = 'View list of tenants',
             icon = 'fas fa-list-ul',
             params = {
                 event = 'smb_properties:client:ShowTenantList',
@@ -325,6 +336,42 @@ RegisterNetEvent('qb-menu:client:manageUnit', function(data)
     }
 
     exports['qb-menu']:openMenu(elements)
+end)
+
+RegisterNetEvent('smb_properties:client:ManageTenantUnit')
+AddEventHandler('smb_properties:client:ManageTenantUnit', function(unit)
+    local unit = unit.unit
+    local manageUnitMenu = {
+        {
+            header = "Manage Unit " .. unit.unitID,
+            icon = 'fas fa-building',
+            isMenuHeader = true
+        },
+        {
+            header = "Pay Amount Due",
+            txt = "Pay your outstanding amount.",
+            icon = 'fas fa-money-bill-wave',
+            params = {
+                event = 'smb_properties:client:PayAmountDue',
+                args = {
+                    tenantID = unit.tenantID
+                }
+            }
+        },
+        {
+            header = "Terminate Lease",
+            txt = "Stop renting this unit.",
+            icon = 'fas fa-sign-out-alt',
+            params = {
+                event = 'smb_properties:client:TerminateLease',
+                args = {
+                    tenantID = unit.tenantID
+                }
+            }
+        }
+    }
+
+    exports['qb-menu']:openMenu(manageUnitMenu)
 end)
 
 RegisterNetEvent('smb_properties:client:OpenStash', function(stashData)
@@ -448,6 +495,84 @@ RegisterNetEvent('smb_properties:client:ShowTenantList', function(data)
 
         exports['qb-menu']:openMenu(tenantMenu)
     end, unitNumber)
+end)
+
+RegisterNetEvent('smb_properties:client:ShowRentedUnits')
+AddEventHandler('smb_properties:client:ShowRentedUnits', function(data)
+    local propertyName = data.propertyName
+
+    QBCore.Functions.TriggerCallback('smb_properties:server:GetRentedUnits', function(units, error)
+        if not units then
+            print(error or "Unknown error occurred!")
+            return
+        end
+        
+        local rentedUnitsMenu = {
+            {
+                header = "Units I'm Renting",
+                icon = 'fas fa-home',
+                isMenuHeader = true
+            }
+        }
+    
+        for _, unit in ipairs(units) do
+            table.insert(rentedUnitsMenu, {
+                header = "Unit ID: " .. unit.unitID .. " | Tenant ID: " .. unit.tenantID .. " | Total Amount Due: " .. unit.totalAmountDue,
+                txt = "Click to manage this unit.",
+                icon = 'fas fa-building',
+                params = {
+                    event = 'smb_properties:client:ManageTenantUnit',
+                    args = {
+                        unit = unit
+                    }
+                }
+            })
+        end
+    
+        exports['qb-menu']:openMenu(rentedUnitsMenu)
+    end, propertyName)
+end)
+
+RegisterNetEvent('smb_properties:client:PayAmountDue')
+AddEventHandler('smb_properties:client:PayAmountDue', function(unit)
+    local tenantID = unit.tenantID  
+
+    QBCore.Functions.TriggerCallback('smb_properties:server:FetchAmountDue', function(amountDue)
+        if amountDue and amountDue > 0 then
+            local dialog = exports['qb-input']:ShowInput({
+                header = "Amount Due",
+                submitText = "Pay",
+                inputs = {
+                    {
+                        text = "You have an outstanding amount of $" .. amountDue .. ". Enter amount to pay:",
+                        name = "payAmount",
+                        type = "number",
+                        isRequired = true,
+                        default = amountDue 
+                    }
+                },
+            })
+
+            if dialog ~= nil and dialog.payAmount ~= nil then
+                local amountToPay = tonumber(dialog.payAmount)
+                if amountToPay and amountToPay > 0 and amountToPay <= amountDue then
+                    QBCore.Functions.TriggerCallback('smb_properties:server:PayAmountDue', function(success, msg) 
+                        if success then
+                            QBCore.Functions.Notify('You have paid the amount of $' .. amountToPay, 'success')
+                        else
+                            QBCore.Functions.Notify(msg, 'error')
+                        end
+                    end, tenantID, amountToPay)
+                else
+                    QBCore.Functions.Notify('Invalid amount entered.', 'error')
+                end
+            else
+                QBCore.Functions.Notify('Payment cancelled.', 'error')
+            end
+        else
+            QBCore.Functions.Notify('You have no outstanding amount to pay.', 'info')
+        end
+    end, tenantID)
 end)
 
 RegisterNetEvent('smb_properties:client:ChangeOutfit', function()
