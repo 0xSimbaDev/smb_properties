@@ -20,9 +20,9 @@ Config.Properties = {
                 stash = {
                     coords = vec3(307.02, -207.97, 54.22),
                     ids = {
-                        'pinkcage_unit1_stash1',
-                        'pinkcage_unit1_stash2',
-                        'pinkcage_unit1_stash3',
+                        'pinkcage_unit1_stash_1',
+                        'pinkcage_unit1_stash_2',
+                        'pinkcage_unit1_stash_3',
                     },
                 },
             },
@@ -37,9 +37,9 @@ Config.Properties = {
                 stash = {
                     coords = vec3(310.69, -198.1, 54.76),
                     ids = {
-                        'pinkcage_unit2_stash1',
-                        'pinkcage_unit2_stash2',
-                        'pinkcage_unit2_stash3',
+                        'pinkcage_unit2_stash_1',
+                        'pinkcage_unit2_stash_2',
+                        'pinkcage_unit2_stash_3',
                     },
                 },
             },    
