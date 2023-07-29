@@ -1,7 +1,7 @@
 local QBCore = exports['qb-core']:GetCoreObject()
 
 local DoorStates = {}
-local DEBUG_MODE = false  
+local DEBUG_MODE = true  
 
 local function debugPrint(message)
     if DEBUG_MODE then
@@ -76,16 +76,24 @@ local function CalculateAndChargeRent(src)
         FROM 
             smb_properties_tenants 
         INNER JOIN 
-            smb_properties_units ON smb_properties_tenants.unitID = smb_properties_units.unitID 
+            smb_properties_units 
+        ON 
+            smb_properties_tenants.unitID = smb_properties_units.unitID 
+        AND 
+            smb_properties_tenants.propertyName = smb_properties_units.propertyName
         INNER JOIN 
-            smb_properties ON smb_properties_units.propertyName = smb_properties.propertyName 
+            smb_properties 
+        ON 
+            smb_properties_tenants.propertyName = smb_properties.propertyName 
         WHERE 
             smb_properties_tenants.citizenID = @citizenID 
         AND 
             smb_properties_tenants.status = 'active'
+    
     ]]
 
     MySQL.Async.fetchAll(query, { ['@citizenID'] = citizenID }, function(results)
+        debugPrint("Raw SQL Results: " .. json.encode(results))
         if results and #results > 0 then
             debugPrint("Found " .. #results .. " active tenants for CitizenID: " .. citizenID)
 
@@ -198,12 +206,28 @@ QBCore.Functions.CreateCallback('smb_properties:server:GetPlayerRole', function(
     local src = source
     local citizenID = QBCore.Functions.GetPlayer(src).PlayerData.citizenid
 
-    local query = "SELECT ownerCitizenID FROM smb_properties WHERE propertyName = @propertyName"
+    local query = [[
+        SELECT ownerCitizenID 
+        FROM smb_properties 
+        WHERE propertyName = @propertyName
+    ]]
+    
     MySQL.Async.fetchAll(query, { ['@propertyName'] = propertyName }, function(results)
         if results[1] and results[1].ownerCitizenID == citizenID then
             cb("owner")
         else
-            query = "SELECT COUNT(*) as count FROM smb_properties_tenants WHERE unitID IN (SELECT unitID FROM smb_properties_units WHERE propertyName = @propertyName) AND citizenID = @citizenID AND status = 'active'"
+            query = [[
+                SELECT COUNT(*) as count 
+                FROM 
+                    smb_properties_tenants 
+                WHERE unitID IN (
+                    SELECT unitID 
+                    FROM smb_properties_units 
+                    WHERE propertyName = @propertyName
+                ) 
+                AND citizenID = @citizenID
+            ]]
+            
             MySQL.Async.fetchAll(query, { ['@propertyName'] = propertyName, ['@citizenID'] = citizenID }, function(tenants)
                 if tenants and #tenants > 0 and tenants[1].count > 0 then
                     cb("tenant")
@@ -221,9 +245,12 @@ QBCore.Functions.CreateCallback('smb_properties:server:CheckOwnership', function
     local citizenID = player.PlayerData.citizenid
 
     local query = [[
-        SELECT ownerCitizenID 
-        FROM smb_properties 
-        WHERE propertyName = @propertyName
+        SELECT 
+            ownerCitizenID 
+        FROM 
+            smb_properties 
+        WHERE 
+            propertyName = @propertyName
     ]]
 
     MySQL.Async.fetchAll(query, { ['@propertyName'] = propertyName }, function(results)
@@ -240,9 +267,12 @@ QBCore.Functions.CreateCallback('smb_properties:server:CheckStashAccess', functi
     local citizenID = QBCore.Functions.GetPlayer(src).PlayerData.citizenid
 
     local query = [[
-        SELECT stash_id 
-        FROM smb_properties_tenants 
-        WHERE citizenID = @citizenID AND status = 'active'
+        SELECT 
+            stash_id 
+        FROM 
+            smb_properties_tenants 
+        WHERE 
+            citizenID = @citizenID AND status = 'active'
     ]]
     
     MySQL.Async.fetchAll(query, {['@citizenID'] = citizenID}, function(result)
@@ -400,7 +430,7 @@ QBCore.Functions.CreateCallback('smb_properties:server:GetRentedUnits', function
             ) AS l2 ON l1.tenantID = l2.tenantID AND l1.transactionDate = l2.maxDate
             GROUP BY l1.tenantID, l1.balance
         ) AS l ON t.tenantID = l.tenantID
-        WHERE t.citizenID = ? AND t.status = 'active' AND p.propertyName = ? AND t.propertyName = ?
+        WHERE t.citizenID = ? AND p.propertyName = ? AND t.propertyName = ?
         GROUP BY t.tenantID, t.unitID, l.balance
     ]]
 
@@ -431,17 +461,32 @@ QBCore.Functions.CreateCallback('smb_properties:server:PayAmountDue', function(s
         local cash = player.Functions.GetMoney("cash")
         local bank = player.Functions.GetMoney("bank")
 
-        if bank >= amountPaid then
-            player.Functions.RemoveMoney('bank', amountPaid)
+        -- if bank >= amountPaid then
+        --     player.Functions.RemoveMoney('bank', amountPaid)
             
-            local ledgerQuery = "INSERT INTO smb_properties_ledger (tenantID, description, amount, balance, transactionType) VALUES (?, 'Payment', ?, ?, 'Payment')"
-            MySQL.Async.execute(ledgerQuery, { tenantID, -amountPaid, prevBalance - amountPaid }, function()
-                cb(true, "Payment successful!")
+            local ledgerQuery = [[
+                INSERT INTO smb_properties_ledger (tenantID, description, amount, balance, transactionType) 
+                VALUES (@tenantID, 'Payment', @amountPaid, @newBalance, 'Payment')
+            ]]
+            MySQL.Async.execute(ledgerQuery, { 
+                ['@tenantID'] = tenantID, 
+                ['@amountPaid'] = -amountPaid, 
+                ['@newBalance'] = prevBalance - amountPaid 
+            }, function()
+                
+                local updateTenantStatusQuery = [[
+                    UPDATE smb_properties_tenants
+                    SET status = 'completed'
+                    WHERE tenantID = @tenantID
+                ]]
+                MySQL.Async.execute(updateTenantStatusQuery, { ['@tenantID'] = tenantID }, function()
+                    cb(true, "Payment successful and tenancy marked as completed!")
+                end)
             end)
-        else
-            cb(false, "Not enough money in the bank account!")
-            return
-        end
+        -- else
+        --     cb(false, "Not enough money in the bank account!")
+        --     return
+        -- end
     end)
 end)
 
@@ -531,90 +576,138 @@ QBCore.Functions.CreateCallback('smb_properties:server:RentUnit', function(sourc
     local player = QBCore.Functions.GetPlayer(source)
     local citizenID = player.PlayerData.citizenid
 
-    local query = [[
+    local evictionQuery = [[
         SELECT 
             *
         FROM 
             smb_properties_tenants
         WHERE 
-            unitID = @unitID AND citizenID = @citizenID AND propertyName = @propertyName
+            citizenID = @citizenID AND propertyName = @propertyName AND status = 'evicted'
     ]]
 
-    MySQL.Async.fetchAll(query, {
-        ['@unitID'] = unitID,
+    MySQL.Async.fetchAll(evictionQuery, {
         ['@citizenID'] = citizenID,
         ['@propertyName'] = propertyName
-    }, function(existingTenant, err)
-        if err then
-            debugPrint("RentUnit: Error executing SQL query:", err)
-            cb(false, "An error occurred while processing your request.")
+    }, function(evictedTenant)
+        if #evictedTenant > 0 then
+            cb(false, "You have been evicted from this property and cannot rent a unit here.")
             return
         end
 
-        if existingTenant and #existingTenant > 0 then
-            cb(false, "You have already rented this unit.")
-            return
-        end
-
-        local query2 = [[
-            SELECT tenantCount, rentCost
-            FROM smb_properties_units
-            LEFT JOIN (
-                SELECT unitID, propertyName, COUNT(*) as tenantCount
-                FROM smb_properties_tenants
-                WHERE status = 'active'
-                GROUP BY unitID, propertyName
-            ) t ON smb_properties_units.unitID = t.unitID AND smb_properties_units.propertyName = t.propertyName
-            WHERE smb_properties_units.unitID = @unitID AND smb_properties_units.propertyName = @propertyName
+        local query = [[
+            SELECT 
+                *
+            FROM 
+                smb_properties_tenants
+            WHERE 
+                unitID = @unitID AND citizenID = @citizenID AND propertyName = @propertyName
         ]]
 
-        MySQL.Async.fetchAll(query2, {
+        MySQL.Async.fetchAll(query, {
             ['@unitID'] = unitID,
+            ['@citizenID'] = citizenID,
             ['@propertyName'] = propertyName
-        }, function(unitInfo, err2)
-            if err2 then
-                debugPrint("RentUnit: Error executing SQL query:", err2)
+        }, function(existingTenant, err)
+            if err then
+                debugPrint("RentUnit: Error executing SQL query:", err)
                 cb(false, "An error occurred while processing your request.")
                 return
             end
+            -- print("Existing Tenant Data:", json.encode(existingTenant))
+            local isActiveRentalExists = false
 
-            if unitInfo and #unitInfo > 0 then
-                local tenantCount = unitInfo[1].tenantCount or 0
-                local rentCost = unitInfo[1].rentCost
-                local availableSlots = 3 - tenantCount
-
-                if availableSlots > 0 then
-                    local stash_id = Config.Properties[propertyName].units[unitID].stash.ids[tenantCount + 1]
-
-                    local insertQuery = [[
-                        INSERT INTO 
-                            smb_properties_tenants (unitID, propertyName, citizenID, status, citizenName, stash_id)
-                        VALUES 
-                            (@unitID, @propertyName, @citizenID, @status, @citizenName, @stash_id)
-                    ]]
-                
-                    MySQL.Async.execute(insertQuery, {
-                        ['@unitID'] = unitID,
-                        ['@propertyName'] = propertyName,
-                        ['@citizenID'] = citizenID,
-                        ['@status'] = 'active',
-                        ['@citizenName'] = player.PlayerData.charinfo.firstname .. ' ' .. player.PlayerData.charinfo.lastname,
-                        ['@stash_id'] = stash_id
-                    }, function(rowsInserted, err3)
-                        if err3 then
-                            debugPrint("RentUnit: Error executing SQL query:", err3)
-                            cb(false, "An error occurred while processing your request.")
-                            return
-                        end
-
-                        cb(true, "Unit rented successfully! Monthly rent: $" .. rentCost)
-                    end)
-                else
-                    cb(false, "This unit is fully occupied.")
+            for _, tenant in ipairs(existingTenant) do
+                if tenant.status == "active" then
+                    isActiveRentalExists = true
+                    break
                 end
-            else
-                cb(false, "Invalid unit ID or property name.")
             end
+            
+            if isActiveRentalExists then
+                cb(false, "You are currently renting this unit.")
+                return
+            end
+
+            local query2 = [[
+                SELECT tenantCount, rentCost
+                FROM smb_properties_units
+                LEFT JOIN (
+                    SELECT unitID, propertyName, COUNT(*) as tenantCount
+                    FROM smb_properties_tenants
+                    WHERE status = 'active'
+                    GROUP BY unitID, propertyName
+                ) t ON smb_properties_units.unitID = t.unitID AND smb_properties_units.propertyName = t.propertyName
+                WHERE smb_properties_units.unitID = @unitID AND smb_properties_units.propertyName = @propertyName
+            ]]
+
+            MySQL.Async.fetchAll(query2, {
+                ['@unitID'] = unitID,
+                ['@propertyName'] = propertyName
+            }, function(unitInfo, err2)
+                if err2 then
+                    debugPrint("RentUnit: Error executing SQL query:", err2)
+                    cb(false, "An error occurred while processing your request.")
+                    return
+                end
+
+                if unitInfo and #unitInfo > 0 then
+                    local tenantCount = unitInfo[1].tenantCount or 0
+                    local rentCost = unitInfo[1].rentCost
+                    local availableSlots = 3 - tenantCount
+
+                    if availableSlots > 0 then
+                        MySQL.Async.fetchAll("SELECT stash_id FROM smb_properties_tenants WHERE unitID = @unitID AND status = 'active'", {
+                            ['@unitID'] = unitID
+                        }, function(tenants)
+                            local inUseStashes = {}
+                            for _, tenant in ipairs(tenants) do
+                                inUseStashes[tenant.stash_id] = true
+                            end
+                            
+                            local stash_id
+                            for _, stashId in ipairs(Config.Properties[propertyName].units[unitID].stash.ids) do
+                                if not inUseStashes[stashId] then
+                                    stash_id = stashId
+                                    break
+                                end
+                            end
+                            
+                            if not stash_id then
+                                cb(false, "Error assigning stash ID.")
+                                return
+                            end
+                            
+                            local insertQuery = [[
+                                INSERT INTO 
+                                    smb_properties_tenants (unitID, propertyName, citizenID, status, citizenName, stash_id)
+                                VALUES 
+                                    (@unitID, @propertyName, @citizenID, @status, @citizenName, @stash_id)
+                            ]]
+                        
+                            MySQL.Async.execute(insertQuery, {
+                                ['@unitID'] = unitID,
+                                ['@propertyName'] = propertyName,
+                                ['@citizenID'] = citizenID,
+                                ['@status'] = 'active',
+                                ['@citizenName'] = player.PlayerData.charinfo.firstname .. ' ' .. player.PlayerData.charinfo.lastname,
+                                ['@stash_id'] = stash_id
+                            }, function(rowsInserted, err3)
+                                if err3 then
+                                    debugPrint("RentUnit: Error executing SQL query:", err3)
+                                    cb(false, "An error occurred while processing your request.")
+                                    return
+                                end
+
+                                cb(true, "Unit rented successfully! Monthly rent: $" .. rentCost)
+                            end)
+                        end)
+                    else
+                        cb(false, "This unit is fully occupied.")
+                    end
+                else
+                    cb(false, "Invalid unit ID or property name.")
+                end
+            end)
         end)
     end)
 end)
