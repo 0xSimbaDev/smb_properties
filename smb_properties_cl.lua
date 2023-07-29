@@ -105,6 +105,7 @@ end
 local function RegisterDoor(door)
     print("Registering door: " .. door.doorHash)
     AddDoorToSystem(door.doorHash, door.modelHash, door.coords.x, door.coords.y, door.coords.z, false, false, false)
+    DoorSystemSetDoorState(door.doorHash, 4)
 end
 
 CreateThread(function()
@@ -543,7 +544,7 @@ RegisterNetEvent('smb_properties:client:EvictTenantOption', function(args)
         else
             QBCore.Functions.Notify("No tenants found for this unit.", "error")
         end
-    end, unitNumber)
+    end, unitNumber, propertyName)
 end)
 
 RegisterNetEvent('smb_properties:client:EvictTenant')
@@ -587,7 +588,7 @@ RegisterNetEvent('smb_properties:client:ShowTenantList', function(data)
         end
 
         exports['qb-menu']:openMenu(tenantMenu)
-    end, unitNumber)
+    end, unitNumber, propertyName)
 end)
 
 RegisterNetEvent('smb_properties:client:ShowRentedUnits')

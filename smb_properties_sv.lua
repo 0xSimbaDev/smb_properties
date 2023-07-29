@@ -68,7 +68,22 @@ local function CalculateAndChargeRent(src)
     debugPrint("Current Bank Balance: " .. bankBalance)
     debugPrint("Current Cash Balance: " .. cashBalance)
 
-    local query = "SELECT smb_properties_tenants.*, smb_properties_units.*, smb_properties.ownerCitizenID FROM smb_properties_tenants INNER JOIN smb_properties_units ON smb_properties_tenants.unitID = smb_properties_units.unitID INNER JOIN smb_properties ON smb_properties_units.propertyName = smb_properties.propertyName WHERE smb_properties_tenants.citizenID = @citizenID AND smb_properties_tenants.status = 'active'"
+    local query = [[
+        SELECT 
+            smb_properties_tenants.*, 
+            smb_properties_units.*, 
+            smb_properties.ownerCitizenID 
+        FROM 
+            smb_properties_tenants 
+        INNER JOIN 
+            smb_properties_units ON smb_properties_tenants.unitID = smb_properties_units.unitID 
+        INNER JOIN 
+            smb_properties ON smb_properties_units.propertyName = smb_properties.propertyName 
+        WHERE 
+            smb_properties_tenants.citizenID = @citizenID 
+        AND 
+            smb_properties_tenants.status = 'active'
+    ]]
 
     MySQL.Async.fetchAll(query, { ['@citizenID'] = citizenID }, function(results)
         if results and #results > 0 then
@@ -160,8 +175,16 @@ QBCore.Functions.CreateCallback('smb_properties:server:GetAccessData', function(
             return
         end
 
-        query = "SELECT COUNT(*) as count FROM smb_properties_tenants WHERE unitID = @unitID AND citizenID = @citizenID AND status = 'active'"
-        MySQL.Async.fetchAll(query, { ['@unitID'] = unitID, ['@citizenID'] = citizenID }, function(tenants)
+        query = [[
+            SELECT COUNT(*) as count 
+            FROM smb_properties_tenants 
+            WHERE unitID = @unitID AND propertyName = @propertyName AND citizenID = @citizenID AND status = 'active'
+        ]]
+        MySQL.Async.fetchAll(query, { 
+            ['@unitID'] = unitID, 
+            ['@propertyName'] = propertyName, 
+            ['@citizenID'] = citizenID 
+        }, function(tenants)
             if tenants[1] and tenants[1].count > 0 then
                 cb(true)
             else
@@ -289,10 +312,14 @@ QBCore.Functions.CreateCallback('smb_properties:server:EvictTenant', function(so
             local evictionQuery = [[
                 UPDATE smb_properties_tenants 
                 SET status = 'evicted' 
-                WHERE unitID = @unitID AND tenantID = @tenantID AND status = 'active'
+                WHERE unitID = @unitID AND tenantID = @tenantID AND status = 'active' AND propertyName = @propertyName
             ]]
             
-            MySQL.Async.execute(evictionQuery, { ['@unitID'] = unitID, ['@tenantID'] = tenantID }, function(affectedRows)
+            MySQL.Async.execute(evictionQuery, { 
+                ['@unitID'] = unitID, 
+                ['@tenantID'] = tenantID, 
+                ['@propertyName'] = propertyName 
+            }, function(affectedRows)
                 if affectedRows > 0 then
                     print("[DEBUG] Tenant evicted successfully.")
                     cb(true, "Tenant evicted successfully.") 
@@ -308,19 +335,23 @@ QBCore.Functions.CreateCallback('smb_properties:server:EvictTenant', function(so
     end)
 end)
 
-QBCore.Functions.CreateCallback('smb_properties:server:GetTenants', function(source, cb, unitID)
+
+QBCore.Functions.CreateCallback('smb_properties:server:GetTenants', function(source, cb, unitID, propertyName)
     local query = [[
         SELECT * 
         FROM smb_properties_tenants
-        WHERE unitID = @unitID
+        WHERE unitID = @unitID AND propertyName = @propertyName AND status = 'active'
     ]]
     
-    MySQL.Async.fetchAll(query, { ['@unitID'] = unitID }, function(results)
+    MySQL.Async.fetchAll(query, { 
+        ['@unitID'] = unitID,
+        ['@propertyName'] = propertyName 
+    }, function(results)
         cb(results)
     end)
 end)
 
-QBCore.Functions.CreateCallback('smb_properties:server:GetTenantsDetails', function(source, cb, unitNumber)
+QBCore.Functions.CreateCallback('smb_properties:server:GetTenantsDetails', function(source, cb, unitNumber, propertyName)
     local query = [[
         SELECT t.tenantID, t.unitID, t.citizenName, t.status, COALESCE(l.balance, 0) as totalDue
         FROM smb_properties_tenants AS t 
@@ -333,17 +364,21 @@ QBCore.Functions.CreateCallback('smb_properties:server:GetTenantsDetails', funct
                 GROUP BY tenantID
             ) AS l2 ON l1.tenantID = l2.tenantID AND l1.transactionDate = l2.latestDate
         ) AS l ON t.tenantID = l.tenantID
-        WHERE t.unitID = @unitID
+        WHERE t.unitID = @unitID AND t.propertyName = @propertyName
     ]]
 
-    MySQL.Async.fetchAll(query, { ['@unitID'] = unitNumber }, function(tenants)
+    MySQL.Async.fetchAll(query, { 
+        ['@unitID'] = unitNumber,
+        ['@propertyName'] = propertyName 
+    }, function(tenants)
         if tenants and #tenants > 0 then
             cb(tenants)
         else
-            print("No tenants found for the specified unit.")
+            print("No tenants found for the specified unit in the given property.")
         end
     end)
 end)
+
 
 
 QBCore.Functions.CreateCallback('smb_properties:server:GetRentedUnits', function(source, cb, propertyName)
@@ -365,11 +400,11 @@ QBCore.Functions.CreateCallback('smb_properties:server:GetRentedUnits', function
             ) AS l2 ON l1.tenantID = l2.tenantID AND l1.transactionDate = l2.maxDate
             GROUP BY l1.tenantID, l1.balance
         ) AS l ON t.tenantID = l.tenantID
-        WHERE t.citizenID = ? AND t.status = 'active' AND p.propertyName = ?
+        WHERE t.citizenID = ? AND t.status = 'active' AND p.propertyName = ? AND t.propertyName = ?
         GROUP BY t.tenantID, t.unitID, l.balance
     ]]
 
-    MySQL.Async.fetchAll(query, { citizenID, propertyName }, function(results)
+    MySQL.Async.fetchAll(query, { citizenID, propertyName, propertyName }, function(results)
         if results and #results > 0 then
             cb(results)
         else
@@ -432,15 +467,18 @@ end)
 
 QBCore.Functions.CreateCallback('smb_properties:server:GetAvailableUnits', function(source, cb, propertyName)
     local query = [[
-        SELECT u.unitID, u.propertyName, u.rentCost, IFNULL(t.tenantCount, 0) as tenantCount, u.isAvailable
-        FROM smb_properties_units u
+        SELECT 
+            u.unitID, u.propertyName, u.rentCost, IFNULL(t.tenantCount, 0) as tenantCount, u.isAvailable
+        FROM 
+            smb_properties_units u
         LEFT JOIN (
-            SELECT unitID, COUNT(*) as tenantCount
+            SELECT unitID, propertyName, COUNT(*) as tenantCount
             FROM smb_properties_tenants
             WHERE status = 'active'
-            GROUP BY unitID
-        ) t ON u.unitID = t.unitID
-        WHERE u.propertyName = @propertyName AND u.isAvailable = 1
+            GROUP BY unitID, propertyName
+        ) t ON u.unitID = t.unitID AND u.propertyName = t.propertyName
+        WHERE 
+            u.propertyName = @propertyName AND u.isAvailable = 1
     ]]
 
     MySQL.Async.fetchAll(query, { ['@propertyName'] = propertyName }, function(units, err)
@@ -494,14 +532,18 @@ QBCore.Functions.CreateCallback('smb_properties:server:RentUnit', function(sourc
     local citizenID = player.PlayerData.citizenid
 
     local query = [[
-        SELECT *
-        FROM smb_properties_tenants
-        WHERE unitID = @unitID AND citizenID = @citizenID
+        SELECT 
+            *
+        FROM 
+            smb_properties_tenants
+        WHERE 
+            unitID = @unitID AND citizenID = @citizenID AND propertyName = @propertyName
     ]]
 
     MySQL.Async.fetchAll(query, {
         ['@unitID'] = unitID,
-        ['@citizenID'] = citizenID
+        ['@citizenID'] = citizenID,
+        ['@propertyName'] = propertyName
     }, function(existingTenant, err)
         if err then
             debugPrint("RentUnit: Error executing SQL query:", err)
@@ -518,11 +560,11 @@ QBCore.Functions.CreateCallback('smb_properties:server:RentUnit', function(sourc
             SELECT tenantCount, rentCost
             FROM smb_properties_units
             LEFT JOIN (
-                SELECT unitID, COUNT(*) as tenantCount
+                SELECT unitID, propertyName, COUNT(*) as tenantCount
                 FROM smb_properties_tenants
                 WHERE status = 'active'
-                GROUP BY unitID
-            ) t ON smb_properties_units.unitID = t.unitID
+                GROUP BY unitID, propertyName
+            ) t ON smb_properties_units.unitID = t.unitID AND smb_properties_units.propertyName = t.propertyName
             WHERE smb_properties_units.unitID = @unitID AND smb_properties_units.propertyName = @propertyName
         ]]
 
@@ -545,12 +587,15 @@ QBCore.Functions.CreateCallback('smb_properties:server:RentUnit', function(sourc
                     local stash_id = Config.Properties[propertyName].units[unitID].stash.ids[tenantCount + 1]
 
                     local insertQuery = [[
-                        INSERT INTO smb_properties_tenants (unitID, citizenID, status, citizenName, stash_id)
-                        VALUES (@unitID, @citizenID, @status, @citizenName, @stash_id)
+                        INSERT INTO 
+                            smb_properties_tenants (unitID, propertyName, citizenID, status, citizenName, stash_id)
+                        VALUES 
+                            (@unitID, @propertyName, @citizenID, @status, @citizenName, @stash_id)
                     ]]
                 
                     MySQL.Async.execute(insertQuery, {
                         ['@unitID'] = unitID,
+                        ['@propertyName'] = propertyName,
                         ['@citizenID'] = citizenID,
                         ['@status'] = 'active',
                         ['@citizenName'] = player.PlayerData.charinfo.firstname .. ' ' .. player.PlayerData.charinfo.lastname,
