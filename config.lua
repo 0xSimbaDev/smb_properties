@@ -7,10 +7,16 @@ Config.Properties = {
         blipCoords = vec3(306.848938, -213.674500, 54.371540),
         purchasePrice = 15000000,
         isPropertySold = true,
+        management = {
+            coords = vec3(315.95, -223.26, 54.06),
+            viewRentedUnits = true, 
+            payForUnits = true,
+            viewAvailableUnits = true, 
+            canRentUnits = true,    
+        },
         units = {
-            -- add units below this object otittttttttsssssssss
             [1] = {
-                clothinCoords = vec3(302.44, -207.36, 54.23), -- Edit mo to
+                clothinCoords = vec3(302.44, -207.36, 54.23), 
                 door = {
                     coords = vec3(306.848938, -213.674500, 54.371540), 
                     locked = true,
@@ -27,7 +33,7 @@ Config.Properties = {
                 },
             },
             [2] = {
-                clothinCoords = vec3(0, 0, 0), -- Edit mo to
+                clothinCoords = vec3(306.64, -197.08, 54.23), 
                 door = {
                     coords = vec3(310.64, -203.79, 54.37), 
                     locked = true,
@@ -42,7 +48,211 @@ Config.Properties = {
                         'pinkcage_unit2_stash_3',
                     },
                 },
-            },    
+            },
+            [3] = {
+                clothinCoords = vec3(322.26, -190.13, 54.23), 
+                door = {
+                    coords = vec3(315.39, -194.17, 54.37), 
+                    locked = true,
+                    doorHash = `pinkcage_unit3`,
+                    modelHash = -1156992775,
+                },
+                stash = {
+                    coords = vec3(320.23, -194.09, 54.23),
+                    ids = {
+                        'pinkcage_unit3_stash_1',
+                        'pinkcage_unit3_stash_2',
+                        'pinkcage_unit3_stash_3',
+                    },
+                },
+            },
+            [4] = {
+                clothinCoords = vec3(308.49, -224.79, 58.02), 
+                door = {
+                    coords = vec3(315.25, -220.27, 58.17), 
+                    locked = true,
+                    doorHash = `pinkcage_unit4`,
+                    modelHash = -1156992775,
+                },
+                stash = {
+                    coords = vec3(310.17, -220.37, 58.02),
+                    ids = {
+                        'pinkcage_unit4_stash_1',
+                        'pinkcage_unit4_stash_2',
+                        'pinkcage_unit4_stash_3',
+                    },
+                },
+            },
+            [5] = {
+                clothinCoords = vec3(302.56, -206.88, 58.02), 
+                door = {
+                    coords = vec3(306.85, -213.67, 58.17), 
+                    locked = true,
+                    doorHash = `pinkcage_unit5`,
+                    modelHash = -1156992775,
+                },
+                stash = {
+                    coords = vec3(306.84, -208.54, 58.02),
+                    ids = {
+                        'pinkcage_unit5_stash_1',
+                        'pinkcage_unit5_stash_2',
+                        'pinkcage_unit5_stash_3',
+                    },
+                },
+            },
+            [6] = {
+                clothinCoords = vec3(306.29, -196.88, 58.02), 
+                door = {
+                    coords = vec3(310.64, -203.79, 58.17), 
+                    locked = true,
+                    doorHash = `pinkcage_unit6`,
+                    modelHash = -1156992775,
+                },
+                stash = {
+                    coords = vec3(310.54, -198.71, 58.02),
+                    ids = {
+                        'pinkcage_unit6_stash_1',
+                        'pinkcage_unit6_stash_2',
+                        'pinkcage_unit6_stash_3',
+                    },
+                },
+            },
+            [7] = {
+                clothinCoords = vec3(322.32, -189.86, 58.02), 
+                door = {
+                    coords = vec3(315.39, -194.17, 58.17), 
+                    locked = true,
+                    doorHash = `pinkcage_unit7`,
+                    modelHash = -1156992775,
+                },
+                stash = {
+                    coords = vec3(320.45, -194.13, 58.02),
+                    ids = {
+                        'pinkcage_unit7_stash_1',
+                        'pinkcage_unit7_stash_2',
+                        'pinkcage_unit7_stash_3',
+                    },
+                },
+            },
+            [8] = {
+                clothinCoords = vec3(344.1, -226.01, 54.23), 
+                door = {
+                    coords = vec3(339.81, -219.1, 54.37), 
+                    locked = true,
+                    doorHash = `pinkcage_unit8`,
+                    modelHash = -1156992775,
+                },
+                stash = {
+                    coords = vec3(339.89, -224.17, 54.23),
+                    ids = {
+                        'pinkcage_unit8_stash_1',
+                        'pinkcage_unit8_stash_2',
+                        'pinkcage_unit8_stash_3',
+                    },
+                },
+            },
+            [9] = {
+                clothinCoords = vec3(347.82, -216.03, 54.23), 
+                door = {
+                    coords = vec3(342.6, -209.21, 54.37), 
+                    locked = true,
+                    doorHash = `pinkcage_unit9`,
+                    modelHash = -1156992775,
+                },
+                stash = {
+                    coords = vec3(343.62, -214.27, 54.23),
+                    ids = {
+                        'pinkcage_unit9_stash_1',
+                        'pinkcage_unit9_stash_2',
+                        'pinkcage_unit9_stash_3',
+                    },
+                },
+            },
+            [10] = {
+                clothinCoords = vec3(351.33, -206.15, 54.23), 
+                door = {
+                    coords = vec3(347.39, -199.33, 54.37), 
+                    locked = true,
+                    doorHash = `pinkcage_unit10`,
+                    modelHash = -1156992775,
+                },
+                stash = {
+                    coords = vec3(347.57, -204.44, 54.23),
+                    ids = {
+                        'pinkcage_unit10_stash_1',
+                        'pinkcage_unit10_stash_2',
+                        'pinkcage_unit10_stash_3',
+                    },
+                },
+            },
+            [11] = {
+                clothinCoords = vec3(328.37, -232.04, 58.02), 
+                door = {
+                    coords = vec3(335.34, -227.98, 58.17), 
+                    locked = true,
+                    doorHash = `pinkcage_unit11`,
+                    modelHash = -1156992775,
+                },
+                stash = {
+                    coords = vec3(330.24, -228.0, 58.02),
+                    ids = {
+                        'pinkcage_unit11_stash_1',
+                        'pinkcage_unit11_stash_2',
+                        'pinkcage_unit11_stash_3',
+                    },
+                },
+            },
+            [12] = {
+                clothinCoords = vec3(343.63, -225.9, 58.02), 
+                door = {
+                    coords = vec3(339.81, -219.1, 58.17), 
+                    locked = true,
+                    doorHash = `pinkcage_unit12`,
+                    modelHash = -1156992775,
+                },
+                stash = {
+                    coords = vec3(339.83, -224.24, 58.02),
+                    ids = {
+                        'pinkcage_unit12_stash_1',
+                        'pinkcage_unit12_stash_2',
+                        'pinkcage_unit12_stash_3',
+                    },
+                },
+            },
+            [13] = {
+                clothinCoords = vec3(347.89, -215.94, 58.02), 
+                door = {
+                    coords = vec3(323.6, -209.21, 58.17), 
+                    locked = true,
+                    doorHash = `pinkcage_unit13`,
+                    modelHash = -1156992775,
+                },
+                stash = {
+                    coords = vec3(343.65, -214.32, 58.02),
+                    ids = {
+                        'pinkcage_unit13_stash_1',
+                        'pinkcage_unit13_stash_2',
+                        'pinkcage_unit13_stash_3',
+                    },
+                },
+            },
+            [14] = {
+                clothinCoords = vec3(351.2, -206.21, 58.02), 
+                door = {
+                    coords = vec3(347.39, -199.33, 58.17), 
+                    locked = true,
+                    doorHash = `pinkcage_unit11`,
+                    modelHash = -1156992775,
+                },
+                stash = {
+                    coords = vec3(347.49, -204.45, 58.02),
+                    ids = {
+                        'pinkcage_unit14_stash_1',
+                        'pinkcage_unit14_stash_2',
+                        'pinkcage_unit14_stash_3',
+                    },
+                },
+            },              
         },
         polyZone = {
             points = {
@@ -58,6 +268,50 @@ Config.Properties = {
             maxZ = 53.8 + 8
         },
     },
+    ["del_perro"] = {
+        name = "del_perro",
+        type = "motel",
+        blipCoords = vec3(306.848938, -213.674500, 54.371540),
+        purchasePrice = 15000000,
+        isPropertySold = true,
+        management = {
+            coords = vec3(-1477.14, -674.45, 29.04),
+            viewRentedUnits = true, 
+            payForUnits = true,
+            viewAvailableUnits = true, 
+            canRentUnits = true,    
+        },
+        units = {
+            [1] = {
+                clothinCoords = vec3(-1495.76, -670.87, 29.03), 
+                door = {
+                    coords = vec3(-1494.44, -668.33, 29.28), 
+                    locked = true,
+                    doorHash = `del_perro_unit1`,
+                    modelHash = -2123441472,
+                },
+                stash = {
+                    coords = vec3(-1497.95, -668.9, 29.03),
+                    ids = {
+                        'del_perro_unit1_stash_1',
+                        'del_perro_unit1_stash_2',
+                        'del_perro_unit1_stash_3',
+                    },
+                },
+            },
+        },
+        polyZone = {
+            points = {
+                vector2(-1457.9395751954, -626.24633789062),
+                vector2(-1436.8034667968, -654.50561523438),
+                vector2(-1474.377319336, -682.05212402344),
+                vector2(-1486.4700927734, -690.05322265625),
+                vector2(-1514.8278808594, -666.49285888672)
+            },
+            minZ = 32.81 - 10,
+            maxZ = 32.81 + 8
+        },
+    }
     -- ["property_1"] = {
     --     type = "house",
     --     coords = {x = 123.4, y = 567.8, z = 910.11},
@@ -107,33 +361,4 @@ Config.Properties = {
     --     },
     --     zone = vector3(123.4, 567.8, 910.11),
     -- },
-    -- ["del_perro"] = {
-    --     type = "motel",
-    --     coords = {x = -1919.7110595704, y = 3022.0185546875, z = 32.81031036377},
-    --     units = {
-    --         [1] = {
-    --             coords = {x = 123.4, y = 567.8, z = 910.11},
-    --             door = {
-    --                 coords = {x = -1466.37, y = -648.15, z = 29.5}, 
-    --                 locked = false,
-    --                 doorHash = `unique_door_hash_5`,
-    --                 modelHash = `model_hash_5`,
-    --             },
-    --             stash = {x = 123.4, y = 567.8, z = 910.11},
-    --             isAvailableForRent = true,
-    --             rentDetails = {
-    --                 cost = 500, 
-    --                 duration = "week"
-    --             }
-    --         },
-    --     },
-    --     polyZone = {
-    --         vector2(-1457.9395751954, -626.24633789062),
-    --         vector2(-1436.8034667968, -654.50561523438),
-    --         vector2(-1474.377319336, -682.05212402344),
-    --         vector2(-1486.4700927734, -690.05322265625),
-    --         vector2(-1514.8278808594, -666.49285888672)
-    --     },
-    -- },
-
 }
