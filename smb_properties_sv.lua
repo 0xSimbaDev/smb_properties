@@ -655,6 +655,15 @@ QBCore.Functions.CreateCallback('smb_properties:server:RentUnit', function(sourc
                     local rentCost = unitInfo[1].rentCost
                     local availableSlots = 3 - tenantCount
 
+                    if player.PlayerData.money.cash >= rentCost then
+                        player.Functions.RemoveMoney('cash', rentCost, "rented-property")
+                    elseif player.PlayerData.money.bank >= rentCost then
+                        player.Functions.RemoveMoney('bank', rentCost, "rented-property")
+                    else
+                        cb(false, "You do not have enough funds to rent this unit. Needed: $" .. rentCost)
+                        return
+                    end
+
                     if availableSlots > 0 then
                         MySQL.Async.fetchAll("SELECT stash_id FROM smb_properties_tenants WHERE unitID = @unitID AND status = 'active'", {
                             ['@unitID'] = unitID
