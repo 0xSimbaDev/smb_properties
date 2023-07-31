@@ -114,7 +114,7 @@ CreateThread(function()
         if property.polyZone then
             local zone = PolyZone:Create(property.polyZone.points, {
                 name = propertyName,
-                debugPoly = true,
+                debugPoly = false,
                 minZ = property.polyZone.minZ,
                 maxZ = property.polyZone.maxZ
             })
