@@ -25,12 +25,11 @@ Config.Properties = {
                 },
                 stash = {
                     coords = vec3(307.02, -207.97, 54.22),
-                    ids = {
-                        'pinkcage_unit1_stash_1',
-                        'pinkcage_unit1_stash_2',
-                        'pinkcage_unit1_stash_3',
-                    },
                 },
+                vault = {
+                    coords = vector3(309.25, -204.92, 54.23),
+                },
+
             },
             [2] = {
                 clothinCoords = vec3(306.64, -197.08, 54.23), 
@@ -42,12 +41,11 @@ Config.Properties = {
                 },
                 stash = {
                     coords = vec3(310.69, -198.1, 54.76),
-                    ids = {
-                        'pinkcage_unit2_stash_1',
-                        'pinkcage_unit2_stash_2',
-                        'pinkcage_unit2_stash_3',
-                    },
                 },
+                vault = {
+                    coords = vector3(313.05, -195.02, 54.23),
+                },
+
             },
             [3] = {
                 clothinCoords = vec3(322.26, -190.13, 54.23), 
@@ -59,12 +57,11 @@ Config.Properties = {
                 },
                 stash = {
                     coords = vec3(320.23, -194.09, 54.23),
-                    ids = {
-                        'pinkcage_unit3_stash_1',
-                        'pinkcage_unit3_stash_2',
-                        'pinkcage_unit3_stash_3',
-                    },
                 },
+                vault = {
+                    coords =  vector3(324.29, -196.49, 54.23),
+                },
+               
             },
             [4] = {
                 clothinCoords = vec3(308.49, -224.79, 58.02), 
@@ -81,6 +78,9 @@ Config.Properties = {
                         'pinkcage_unit4_stash_2',
                         'pinkcage_unit4_stash_3',
                     },
+                },
+                vault = {
+                    coords =  vector3(306.42, -217.87, 58.02),
                 },
             },
             [5] = {
@@ -99,6 +99,9 @@ Config.Properties = {
                         'pinkcage_unit5_stash_3',
                     },
                 },
+                vault = {
+                    coords =  vector3(309.1, -204.83, 58.02),
+                },
             },
             [6] = {
                 clothinCoords = vec3(306.29, -196.88, 58.02), 
@@ -115,6 +118,9 @@ Config.Properties = {
                         'pinkcage_unit6_stash_2',
                         'pinkcage_unit6_stash_3',
                     },
+                },
+                vault = {
+                    coords =  vector3(312.88, -194.99, 58.02),
                 },
             },
             [7] = {
@@ -133,6 +139,9 @@ Config.Properties = {
                         'pinkcage_unit7_stash_3',
                     },
                 },
+                vault = {
+                    coords =  vector3(324.09, -196.65, 58.02),
+                },
             },
             [8] = {
                 clothinCoords = vec3(344.1, -226.01, 54.23), 
@@ -149,6 +158,9 @@ Config.Properties = {
                         'pinkcage_unit8_stash_2',
                         'pinkcage_unit8_stash_3',
                     },
+                },
+                vault = {
+                    coords =  vector3(337.49, -227.89, 54.23),
                 },
             },
             [9] = {
@@ -167,6 +179,9 @@ Config.Properties = {
                         'pinkcage_unit9_stash_3',
                     },
                 },
+                vault = {
+                    coords =  vector3(341.26, -218.04, 54.23),
+                },
             },
             [10] = {
                 clothinCoords = vec3(351.33, -206.15, 54.23), 
@@ -183,6 +198,9 @@ Config.Properties = {
                         'pinkcage_unit10_stash_2',
                         'pinkcage_unit10_stash_3',
                     },
+                },
+                vault = {
+                    coords =  vector3(345.25, -208.17, 54.23),
                 },
             },
             [11] = {
@@ -201,6 +219,9 @@ Config.Properties = {
                         'pinkcage_unit11_stash_3',
                     },
                 },
+                vault = {
+                    coords =  vector3(326.52, -225.78, 58.02),
+                },
             },
             [12] = {
                 clothinCoords = vec3(343.63, -225.9, 58.02), 
@@ -218,22 +239,28 @@ Config.Properties = {
                         'pinkcage_unit12_stash_3',
                     },
                 },
+                vault = {
+                    coords =  vector3(337.46, -227.92, 58.02),
+                },
             },
             [13] = {
                 clothinCoords = vec3(347.89, -215.94, 58.02), 
                 door = {
-                    coords = vec3(323.6, -209.21, 58.17), 
+                    coords = vec3(343.6, -209.21, 58.17), 
                     locked = true,
                     doorHash = `pinkcage_unit13`,
                     modelHash = -1156992775,
                 },
                 stash = {
-                    coords = vec3(343.65, -214.32, 58.02),
+                    coords = vec3(343.59, -214.22, 58.02),
                     ids = {
                         'pinkcage_unit13_stash_1',
                         'pinkcage_unit13_stash_2',
                         'pinkcage_unit13_stash_3',
                     },
+                },
+                vault = {
+                    coords =  vector3(341.15, -217.98, 58.02),
                 },
             },
             [14] = {
@@ -241,7 +268,7 @@ Config.Properties = {
                 door = {
                     coords = vec3(347.39, -199.33, 58.17), 
                     locked = true,
-                    doorHash = `pinkcage_unit11`,
+                    doorHash = `pinkcage_unit14`,
                     modelHash = -1156992775,
                 },
                 stash = {
@@ -251,6 +278,9 @@ Config.Properties = {
                         'pinkcage_unit14_stash_2',
                         'pinkcage_unit14_stash_3',
                     },
+                },
+                vault = {
+                    coords =  vector3(345.12, -208.16, 58.02),
                 },
             },              
         },

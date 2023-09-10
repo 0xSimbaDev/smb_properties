@@ -57,7 +57,7 @@ local function ToggleDoorState(door, unitId)
     end, currentProperty.name, unitId)
 end
 
-local function ShowStashMenu(stash, unitId)
+local function ShowStashMenu(propertyName, unitId)
     local elements = {
         {
             header = 'Unit Stash',
@@ -66,22 +66,96 @@ local function ShowStashMenu(stash, unitId)
         }
     }
 
-    for _, stashId in ipairs(stash.ids) do
         table.insert(elements, {
-            header = FormatStashHeader(stashId),
+            header = 'Stash',
             txt = 'Access Stash',
             icon = 'fas fa-archive',
             params = {
                 event = 'smb_properties:client:OpenStash',
                 args = {
-                    stashId = stashId
+                    property = propertyName,
+                    unit = unitId
                 }
             }
         })
-    end
 
     exports['qb-menu']:openMenu(elements)
 end
+
+
+local function ShowVaultMenu(propertyName, unitId)
+    QBCore.Functions.TriggerCallback('smb_properties:server:IsTenantOfUnit', function(results)
+        local dmAmount = results.dm
+        local elements = {
+            {
+                header = 'DM Vault - Balance: ' .. dmAmount,
+                icon = 'fas fa-box',
+                isMenuHeader = true
+            }
+        }
+    
+            table.insert(elements, {
+                header = 'Withdraw',
+                txt = 'Withdraw DM',
+                icon = 'fas fa-archive',
+                params = {
+                    event = 'smb_properties:client:VaultChange',
+                    args = {
+                        dm = dmAmount,
+                        action = 'withdraw',
+                        tenantID = results.tenantID
+                    }
+                }
+            })
+    
+            table.insert(elements, {
+                header = 'Deposit',
+                txt = 'Deposit DM',
+                icon = 'fas fa-archive',
+                params = {
+                    event = 'smb_properties:client:VaultChange',
+                    args = {
+                        dm = dmAmount,
+                        action = 'deposit',
+                        tenantID = results.tenantID
+                    }
+                }
+            })
+
+  
+        exports['qb-menu']:openMenu(elements)
+    end, propertyName, unitId)
+end
+
+
+
+RegisterNetEvent('smb_properties:client:VaultChange')
+AddEventHandler('smb_properties:client:VaultChange', function(args)
+    local submitxt
+    if args.action == "deposit" then
+        submitxt = "Deposit Amount"
+    elseif args.action == "withdraw" then
+        submitxt = "Withdraw Amount"
+    end
+
+    local result = exports['qb-input']:ShowInput({
+        header = "DM Balance - $" .. args.dm,
+        submitText = submitxt,
+        inputs = {
+            {
+                text = "Amount",
+                name = "amount",
+                type = "number",
+                isRequired = true
+            }
+        },
+    })
+
+    if result then
+        TriggerServerEvent('smb_properties:server:VaultChange', result.amount, args.action, args.tenantID, args.dm)
+    end
+
+end)
 
 local function HandleAction(actionType, property, unitId)
     if actionType == "stash" then
@@ -90,7 +164,10 @@ local function HandleAction(actionType, property, unitId)
         QBCore.Functions.Notify('Using property door!', 'success')
     elseif actionType == "unit_stash" then
         local stash = property.units[unitId].stash
-        ShowStashMenu(stash, unitId)
+        ShowStashMenu(property.name, unitId)
+    elseif actionType == "unit_vault" then
+        ShowVaultMenu(property.name, unitId)
+        QBCore.Functions.Notify('Opening Vault..', 'success')
     elseif actionType == "unit_door" then
         local door = property.units[unitId].door
         doorAnim()
@@ -103,7 +180,7 @@ local function HandleAction(actionType, property, unitId)
 end
 
 local function RegisterDoor(door)
-    print("Registering door: " .. door.doorHash)
+    -- print("Registering door: " .. door.doorHash)
     AddDoorToSystem(door.doorHash, door.modelHash, door.coords.x, door.coords.y, door.coords.z, false, false, false)
     DoorSystemSetDoorState(door.doorHash, 4)
 end
@@ -143,6 +220,7 @@ CreateThread(function()
     end
 end)
 
+
 CreateThread(function()
     local waitTime = 500
     local actionType, unitId
@@ -158,10 +236,19 @@ CreateThread(function()
             end
 
             if not isNearSomething and (currentProperty.type == "mansion" or currentProperty.type == "motel") then
+
+              
                 for id, unit in pairs(currentProperty.units or {}) do
+
                     if unit.stash and IsPlayerNearCoord(unit.stash.coords) then
                         exports['qb-core']:DrawText("Press [E] to open stash")
                         actionType = "unit_stash"
+                        unitId = id
+                        isNearSomething = true
+                        break
+                    elseif unit.vault and IsPlayerNearCoord(unit.vault.coords) then
+                        exports['qb-core']:DrawText("Press [E] to open vault")
+                        actionType = "unit_vault"
                         unitId = id
                         isNearSomething = true
                         break
@@ -468,17 +555,19 @@ AddEventHandler('smb_properties:client:ManageTenantUnit', function(unit)
     exports['qb-menu']:openMenu(manageUnitMenu)
 end)
 
-RegisterNetEvent('smb_properties:client:OpenStash', function(stashData)
-    if stashData.stashId ~= nil then
-        QBCore.Functions.TriggerCallback('smb_properties:server:CheckStashAccess', function(hasAccess)
-            if hasAccess then
-                TriggerServerEvent("inventory:server:OpenInventory", "stash", stashData.stashId)
+
+
+RegisterNetEvent('smb_properties:client:OpenStash', function(args)
+    if args.property ~= nil then
+        QBCore.Functions.TriggerCallback('smb_properties:server:CheckStashAccess', function(stashID)
+            if stashID ~= nil then
+                TriggerServerEvent("inventory:server:OpenInventory", "stash", stashID)
                 TriggerServerEvent("InteractSound_SV:PlayOnSource", "StashOpen", 0.4)
-                TriggerEvent("inventory:client:SetCurrentStash", stashData.stashId)
+                TriggerEvent("inventory:client:SetCurrentStash", stashID)
             else
                 QBCore.Functions.Notify('You do not have access to this stash.', 'error')
             end
-        end, stashData.stashId)
+        end, args.property, args.unit)
     else
         QBCore.Functions.Notify('You are not near a property or unit stash.', 'error')
     end
